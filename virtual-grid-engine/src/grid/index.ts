@@ -8,7 +8,9 @@ export type {
   FrozenColumns,
   GridCell,
   GridColumn,
+  GridSize,
   RowHeightSpec,
   VirtualizedGridProps,
   VisibleBounds,
 } from './types'
+export { toCssSize, usesFluidSizing } from './grid-size'

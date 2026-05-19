@@ -45,6 +45,7 @@ Consumers use exports from `src/index.ts`:
 
 | Option | Role |
 |--------|------|
+| `width` / `height` | `number` (px), `'100%'` (fill host), or `'auto'` (CSS auto + ResizeObserver). Default `'100%'`. |
 | `columns` | Column descriptors (`dataIndex`, `title`, `width`) |
 | `rowCount` | Logical row count |
 | `rowHeight` | Fixed height or per-index function |

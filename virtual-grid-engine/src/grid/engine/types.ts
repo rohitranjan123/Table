@@ -3,6 +3,7 @@ import type {
   FrozenColumns,
   GridCell,
   GridColumn,
+  GridSize,
   RowHeightSpec,
 } from '../types'
 
@@ -18,8 +19,8 @@ export interface GridEngineOptions {
   virtualization?: boolean
   animateTransitions?: boolean
   transitionDurationMs?: number
-  width?: number
-  height?: number
+  width?: GridSize
+  height?: GridSize
   className?: string
   onCellHover?: (cell: CellCoordinate | null) => void
   onCellSelect?: (cell: CellCoordinate) => void

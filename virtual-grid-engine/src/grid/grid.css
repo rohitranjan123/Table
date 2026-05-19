@@ -3,6 +3,12 @@
   position: relative;
   contain: layout style;
   isolation: isolate;
+  box-sizing: border-box;
+}
+
+.vgrid-host:not([style*='height: auto']) {
+  /* Fixed / 100% height: engine root fills host */
+  min-height: 0;
 }
 
 .vgrid {

@@ -5,6 +5,7 @@ import {
   type FrozenColumns,
   type GridCell,
   type GridColumn,
+  type GridSize,
   type RowHeightSpec,
 } from './index'
 import './App.css'
@@ -18,34 +19,62 @@ export type DemoTableConfig = {
   headerHeight: number
   rowHeight: RowHeightSpec
   frozenColumns?: FrozenColumns
-  width: number
-  height: number
+  /** `number` = px · `'100%'` = fill panel · `'auto'` = from layout */
+  width: GridSize
+  height: GridSize
 }
 
 const DEMO_TABLES: DemoTableConfig[] = [
   {
     id: 'sales',
     title: 'Sales ledger',
-    description: '25k rows · 120 cols · variable row height · frozen ID & name',
-    rowCount: 250_000,
-    columnCount: 1020,
+    description:
+      '25k rows · 120 cols · width/height 100% (fills panel)',
+    rowCount: 25_000,
+    columnCount: 120,
     headerHeight: 36,
     rowHeight: (index) => (index % 5 === 0 ? 36 : 28),
     frozenColumns: { left: ['sales-col-0', 'sales-col-1'] },
-    width: 1600,
-    height: 260,
+    width: '100%',
+    height: 600,
   },
   {
     id: 'inventory',
     title: 'Inventory',
-    description: '10k rows · 60 cols · fixed 32px rows · no freeze',
-    rowCount: 100_000,
-    columnCount: 460,
+    description: '10k rows · 60 cols · full width · fixed 260px height',
+    rowCount: 10_000,
+    columnCount: 600,
     headerHeight: 32,
     rowHeight: 32,
-    width: 440,
+    width: '100%',
     height: 260,
   },
+  // {
+  //   id: 'orders',
+  //   title: 'Orders',
+  //   description: '8k rows · 40 cols · fixed 420×220px',
+  //   rowCount: 8_000,
+  //   columnCount: 40,
+  //   headerHeight: 32,
+  //   rowHeight: (index) => (index % 3 === 0 ? 34 : 28),
+  //   frozenColumns: {
+  //     right: ['orders-col-38', 'orders-col-39'],
+  //   },
+  //   width: 420,
+  //   height: 220,
+  // },
+  // {
+  //   id: 'analytics',
+  //   title: 'Analytics',
+  //   description: '15k rows · 90 cols · width 100% · height auto (min 200px)',
+  //   rowCount: 15_000,
+  //   columnCount: 90,
+  //   headerHeight: 36,
+  //   rowHeight: 28,
+  //   frozenColumns: { left: ['analytics-col-0'] },
+  //   width: '100%',
+  //   height: 'auto',
+  // },
 ]
 
 function buildColumns(tableId: string, count: number): GridColumn[] {
@@ -106,9 +135,12 @@ function DemoTablePanel({ config }: { config: DemoTableConfig }) {
     return parts.join(' · ')
   }, [config.id, hover, selected])
 
+  const usesFluidHeight =
+    config.height === '100%' || config.height === 'auto'
+
   return (
     <article
-      className="grid-demo__panel"
+      className={`grid-demo__panel${usesFluidHeight ? ' grid-demo__panel--fluid-height' : ''}`}
       aria-labelledby={`panel-title-${config.id}`}
     >
       <header className="grid-demo__panel-header">
@@ -116,22 +148,24 @@ function DemoTablePanel({ config }: { config: DemoTableConfig }) {
         <p>{config.description}</p>
         <p className="grid-demo__panel-status">{status}</p>
       </header>
-      <VirtualizedGrid
-        gridId={config.id}
-        className={`vgrid--${config.id}`}
-        columns={columns}
-        rowCount={config.rowCount}
-        getCellContent={getCellContent}
-        headerHeight={config.headerHeight}
-        rowHeight={config.rowHeight}
-        frozenColumns={config.frozenColumns}
-        animateTransitions
-        transitionDurationMs={240}
-        width={config.width}
-        height={config.height}
-        onCellHover={setHover}
-        onCellSelect={setSelected}
-      />
+      <div className="grid-demo__panel-body">
+        <VirtualizedGrid
+          gridId={config.id}
+          className={`vgrid--${config.id}`}
+          columns={columns}
+          rowCount={config.rowCount}
+          getCellContent={getCellContent}
+          headerHeight={config.headerHeight}
+          rowHeight={config.rowHeight}
+          frozenColumns={config.frozenColumns}
+          animateTransitions
+          transitionDurationMs={240}
+          width={config.width}
+          height={config.height}
+          onCellHover={setHover}
+          onCellSelect={setSelected}
+        />
+      </div>
     </article>
   )
 }
@@ -142,9 +176,9 @@ function App() {
       <header className="grid-demo__header">
         <h1>Virtualized Grid — multi-instance demo</h1>
         <p>
-          Four independent grids in one view. Each mount owns its own engine,
-          DOM tree, scroll container, and interaction state (
-          <code>data-vgrid-id</code>).
+          Four independent grids. Sizing: <code>number</code> (px),{' '}
+          <code>&apos;100%&apos;</code> (fill parent), or{' '}
+          <code>&apos;auto&apos;</code> (layout-driven, with ResizeObserver).
         </p>
       </header>
 

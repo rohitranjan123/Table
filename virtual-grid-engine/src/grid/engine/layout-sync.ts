@@ -1,5 +1,7 @@
 /** @internal Spacer, layer geometry, scrollbar gutter, and ARIA layout sync. */
 
+import { toCssSize } from '../grid-size'
+import type { GridSize } from '../types'
 import type { ResolvedFreeze, RowMetrics } from '../plugins'
 import type { GridDomShell } from './dom-shell'
 import type { GridEngineOptions } from './types'
@@ -28,11 +30,11 @@ function setLayerStyle(
 
 export function applyContainerSize(
   root: HTMLDivElement,
-  width: number | undefined,
-  height: number | undefined,
+  width: GridSize | undefined,
+  height: GridSize | undefined,
 ): void {
-  root.style.width = width !== undefined ? `${width}px` : '100%'
-  root.style.height = height !== undefined ? `${height}px` : '100%'
+  root.style.width = toCssSize(width)
+  root.style.height = toCssSize(height)
 }
 
 export function applyTransitionStyle(
@@ -73,9 +75,21 @@ export function measureViewport(
   if (clientWidth > 0 && clientHeight > 0) {
     return { width: clientWidth, height: clientHeight }
   }
+  const rootWidth = shell.root.clientWidth
+  const rootHeight = shell.root.clientHeight
   return {
-    width: options.width ?? shell.root.clientWidth,
-    height: options.height ?? shell.root.clientHeight,
+    width:
+      rootWidth > 0
+        ? rootWidth
+        : typeof options.width === 'number'
+          ? options.width
+          : 0,
+    height:
+      rootHeight > 0
+        ? rootHeight
+        : typeof options.height === 'number'
+          ? options.height
+          : 0,
   }
 }
 

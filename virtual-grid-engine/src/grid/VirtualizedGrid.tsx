@@ -3,10 +3,23 @@
  * Each mount owns an isolated engine instance (DOM, listeners, timers).
  */
 
-import { useEffect, useId, useLayoutEffect, useRef } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, type CSSProperties } from 'react'
+import { toCssSize } from './grid-size'
 import './grid.css'
 import { createGrid, type GridEngine } from './engine'
-import type { VirtualizedGridProps } from './types'
+import type { GridSize, VirtualizedGridProps } from './types'
+
+function hostSizeStyle(
+  width: GridSize | undefined,
+  height: GridSize | undefined,
+): CSSProperties {
+  return {
+    width: toCssSize(width),
+    height: toCssSize(height),
+    minWidth: 0,
+    minHeight: 0,
+  }
+}
 
 export function VirtualizedGrid({
   gridId: gridIdProp,
@@ -115,8 +128,7 @@ export function VirtualizedGrid({
       ref={hostRef}
       className="vgrid-host"
       data-vgrid-host={gridId}
-      style={{ width: width ?? '100%', height: height ?? '100%' }}
+      style={hostSizeStyle(width, height)}
     />
   )
 }
-

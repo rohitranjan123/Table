@@ -5,6 +5,7 @@ import {
   type ResolvedFreeze,
   type RowMetrics,
 } from '../plugins'
+import { usesFluidSizing } from '../grid-size'
 import type { CellCoordinate } from '../types'
 import { CellPool } from './CellPool'
 import { createGridDomShell } from './dom-shell'
@@ -32,6 +33,7 @@ class GridEngineImpl implements GridEngine {
   private options: GridEngineOptions
   private destroyed = false
 
+  private readonly container: HTMLElement
   private readonly shell: ReturnType<typeof createGridDomShell>
   private readonly renderer: GridRenderer
   private readonly paintController: PaintController
@@ -54,6 +56,7 @@ class GridEngineImpl implements GridEngine {
 
   constructor(container: HTMLElement, options: GridEngineOptions) {
     this.options = options
+    this.container = container
     this.shell = createGridDomShell(
       container,
       options.gridId,
@@ -106,14 +109,7 @@ class GridEngineImpl implements GridEngine {
     this.syncLayout()
     this.bindInput()
 
-    if (options.width === undefined || options.height === undefined) {
-      this.resizeObserver = new ResizeObserver(() => {
-        if (this.destroyed) return
-        this.syncLayout()
-        this.paintController.schedulePaint(true)
-      })
-      this.resizeObserver.observe(this.shell.root)
-    }
+    this.syncResizeObserver()
 
     this.paintController.schedulePaint(true)
   }
@@ -154,6 +150,9 @@ class GridEngineImpl implements GridEngine {
     if (needsPoolReset) {
       this.renderer.clearPools()
       this.paintController.resetBounds()
+    }
+    if (partial.width !== undefined || partial.height !== undefined) {
+      this.syncResizeObserver()
     }
     this.applyChrome()
     if (layoutAnimation) this.triggerLayoutAnimation(layoutAnimation)
@@ -237,6 +236,25 @@ class GridEngineImpl implements GridEngine {
       viewportWidth: this.viewportWidth,
       viewportHeight: this.viewportHeight,
     })
+  }
+
+  private syncResizeObserver(): void {
+    const needsObserver = usesFluidSizing(
+      this.options.width,
+      this.options.height,
+    )
+
+    if (needsObserver && !this.resizeObserver) {
+      this.resizeObserver = new ResizeObserver(() => {
+        if (this.destroyed) return
+        this.syncLayout()
+        this.paintController.schedulePaint(true)
+      })
+      this.resizeObserver.observe(this.container)
+    } else if (!needsObserver && this.resizeObserver) {
+      this.resizeObserver.disconnect()
+      this.resizeObserver = null
+    }
   }
 
   private markScrollActive(): void {

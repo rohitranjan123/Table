@@ -19,6 +19,9 @@ export type RowHeightSpec = number | ((index: number) => number)
 
 export type CellCoordinate = [col: number, row: number]
 
+/** Pixel value, fill parent (`100%`), or CSS `auto` (size from layout; use ResizeObserver). */
+export type GridSize = number | '100%' | 'auto'
+
 export interface VirtualizedGridProps {
   /**
    * Stable id for this grid instance (ARIA + `data-vgrid-id`).
@@ -45,8 +48,16 @@ export interface VirtualizedGridProps {
   animateTransitions?: boolean
   /** Duration for layout transitions in ms. @default 240 */
   transitionDurationMs?: number
-  width?: number
-  height?: number
+  /**
+   * Grid width. `number` = px; `'100%'` = fill host; `'auto'` = CSS auto (host must get size from layout).
+   * @default '100%'
+   */
+  width?: GridSize
+  /**
+   * Grid height. Same semantics as `width`.
+   * @default '100%'
+   */
+  height?: GridSize
   className?: string
   onCellHover?: (cell: CellCoordinate | null) => void
   onCellSelect?: (cell: CellCoordinate) => void

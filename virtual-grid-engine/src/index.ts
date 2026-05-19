@@ -13,6 +13,7 @@ export {
   type FrozenColumns,
   type GridCell,
   type GridColumn,
+  type GridSize,
   type RowHeightSpec,
   type VirtualizedGridProps,
   type VisibleBounds,
