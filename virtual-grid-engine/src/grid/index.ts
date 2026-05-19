@@ -10,6 +10,9 @@ export type {
   GridColumn,
   GridSize,
   RowHeightSpec,
+  SpanMap,
+  SpanMeta,
+  SpanRowsSpec,
   VirtualizedGridProps,
   VisibleBounds,
 } from './types'

@@ -1,12 +1,20 @@
 import type { FrozenColumns } from './plugins/freeze-columns'
+import type { SpanMap, SpanMeta, SpanRowsSpec } from './plugins/row-span'
 
-export type { FrozenColumns }
+export type { FrozenColumns, SpanMap, SpanMeta, SpanRowsSpec }
 
 /** Column descriptor — width drives horizontal layout prefix sums. */
 export interface GridColumn {
   dataIndex: string
   title: string
   width: number
+  /**
+   * When set, merges body cells vertically in this column.
+   * `true` merges contiguous rows with equal `GridCell.data`.
+   * A function receives the current row and should return whether it
+   * continues the span from the row above.
+   */
+  spanRows?: SpanRowsSpec
 }
 
 /** Cell payload returned by `getCellContent`. */
@@ -61,6 +69,11 @@ export interface VirtualizedGridProps {
   className?: string
   onCellHover?: (cell: CellCoordinate | null) => void
   onCellSelect?: (cell: CellCoordinate) => void
+  /**
+   * Bump to recompute row-span metadata when `getCellContent` is stable
+   * but underlying span data changed.
+   */
+  rowSpanRevision?: number
 }
 
 /** Visible index range inclusive, with overscan applied when virtualized. */

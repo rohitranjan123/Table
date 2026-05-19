@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { ENTERPRISE_DEMO_CONFIG } from './demo/enterprise-row-span-demo'
 import {
   VirtualizedGrid,
   type CellCoordinate,
@@ -19,63 +20,37 @@ export type DemoTableConfig = {
   headerHeight: number
   rowHeight: RowHeightSpec
   frozenColumns?: FrozenColumns
-  /** `number` = px · `'100%'` = fill panel · `'auto'` = from layout */
+  /** `number` = px · `'100%'` = fill parent · `'auto'` = from layout */
   width: GridSize
   height: GridSize
 }
 
-const DEMO_TABLES: DemoTableConfig[] = [
-  {
-    id: 'sales',
-    title: 'Sales ledger',
-    description:
-      '25k rows · 120 cols · width/height 100% (fills panel)',
-    rowCount: 25_000,
-    columnCount: 120,
-    headerHeight: 36,
-    rowHeight: (index) => (index % 5 === 0 ? 36 : 28),
-    frozenColumns: { left: ['sales-col-0', 'sales-col-1'] },
-    width: '100%',
-    height: 600,
-  },
-  {
-    id: 'inventory',
-    title: 'Inventory',
-    description: '10k rows · 60 cols · full width · fixed 260px height',
-    rowCount: 10_000,
-    columnCount: 600,
-    headerHeight: 32,
-    rowHeight: 32,
-    width: '100%',
-    height: 260,
-  },
-  // {
-  //   id: 'orders',
-  //   title: 'Orders',
-  //   description: '8k rows · 40 cols · fixed 420×220px',
-  //   rowCount: 8_000,
-  //   columnCount: 40,
-  //   headerHeight: 32,
-  //   rowHeight: (index) => (index % 3 === 0 ? 34 : 28),
-  //   frozenColumns: {
-  //     right: ['orders-col-38', 'orders-col-39'],
-  //   },
-  //   width: 420,
-  //   height: 220,
-  // },
-  // {
-  //   id: 'analytics',
-  //   title: 'Analytics',
-  //   description: '15k rows · 90 cols · width 100% · height auto (min 200px)',
-  //   rowCount: 15_000,
-  //   columnCount: 90,
-  //   headerHeight: 36,
-  //   rowHeight: 28,
-  //   frozenColumns: { left: ['analytics-col-0'] },
-  //   width: '100%',
-  //   height: 'auto',
-  // },
-]
+// const DEMO_TABLES: DemoTableConfig[] = [
+//   {
+//     id: 'sales',
+//     title: 'Sales ledger',
+//     description: '25k rows · 120 cols · frozen ID + Label',
+//     rowCount: 25_000,
+//     columnCount: 120,
+//     headerHeight: 36,
+//     rowHeight: (index) => (index % 5 === 0 ? 36 : 28),
+//     frozenColumns: { left: ['sales-col-0', 'sales-col-1'] },
+//     width: '100%',
+//     height: 600,
+//   },
+//   {
+//     id: 'inventory',
+//     title: 'Inventory',
+//     description: '10k rows · 60 cols · full width · fixed 260px height',
+//     rowCount: 10_000,
+//     columnCount: 60,
+//     headerHeight: 32,
+//     rowHeight: 32,
+//     frozenColumns: { left: ['inventory-col-0', 'inventory-col-1'] },
+//     width: '100%',
+//     height: 260,
+//   },
+// ]
 
 function buildColumns(tableId: string, count: number): GridColumn[] {
   const cols: GridColumn[] = [
@@ -98,6 +73,56 @@ function buildColumns(tableId: string, count: number): GridColumn[] {
     })
   }
   return cols
+}
+
+function EnterpriseDemoPanel() {
+  const [hover, setHover] = useState<CellCoordinate | null>(null)
+  const [selected, setSelected] = useState<CellCoordinate | null>(null)
+  const cfg = ENTERPRISE_DEMO_CONFIG
+
+  const status = useMemo(() => {
+    const parts: string[] = [`#${cfg.id}`, `${cfg.rowCount} rows`]
+    if (hover) {
+      const field = cfg.columns[hover[0]]?.dataIndex ?? '?'
+      parts.push(`hover ${field} [${hover[0]}, ${hover[1]}]`)
+    }
+    if (selected) {
+      const field = cfg.columns[selected[0]]?.dataIndex ?? '?'
+      parts.push(`sel ${field} [${selected[0]}, ${selected[1]}]`)
+    }
+    return parts.join(' · ')
+  }, [cfg.id, cfg.rowCount, cfg.columns, hover, selected])
+
+  return (
+    <article
+      className="grid-demo__panel grid-demo__panel--fluid-height"
+      aria-labelledby="panel-title-enterprise"
+    >
+      <header className="grid-demo__panel-header">
+        <h2 id="panel-title-enterprise">{cfg.title}</h2>
+        <p>{cfg.description}</p>
+        <p className="grid-demo__panel-status">{status}</p>
+      </header>
+      <div className="grid-demo__panel-body">
+        <VirtualizedGrid
+          gridId={cfg.id}
+          className="vgrid--enterprise"
+          columns={cfg.columns}
+          rowCount={cfg.rowCount}
+          getCellContent={cfg.getCellContent}
+          headerHeight={cfg.headerHeight}
+          rowHeight={cfg.rowHeight}
+          frozenColumns={cfg.frozenColumns}
+          animateTransitions
+          transitionDurationMs={240}
+          width={cfg.width}
+          height={cfg.height}
+          onCellHover={setHover}
+          onCellSelect={setSelected}
+        />
+      </div>
+    </article>
+  )
 }
 
 function DemoTablePanel({ config }: { config: DemoTableConfig }) {
@@ -176,16 +201,17 @@ function App() {
       <header className="grid-demo__header">
         <h1>Virtualized Grid — multi-instance demo</h1>
         <p>
-          Four independent grids. Sizing: <code>number</code> (px),{' '}
-          <code>&apos;100%&apos;</code> (fill parent), or{' '}
-          <code>&apos;auto&apos;</code> (layout-driven, with ResizeObserver).
+          Fintech ledger: 10k trades × 200 columns. Nested row spans follow
+          Region → Country → Desk → Product (parent values repeat per group).
+          Frozen columns match AG Grid <code>pinned: &apos;left&apos;</code>.
         </p>
       </header>
 
       <div className="grid-demo__tables">
-        {DEMO_TABLES.map((config) => (
+        <EnterpriseDemoPanel />
+        {/* {DEMO_TABLES.map((config) => (
           <DemoTablePanel key={config.id} config={config} />
-        ))}
+        ))} */}
       </div>
     </div>
   )

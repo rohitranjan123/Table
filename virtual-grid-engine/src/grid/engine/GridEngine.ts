@@ -1,9 +1,11 @@
 import {
   buildColumnLefts,
+  computeRowSpans,
   createRowMetrics,
   resolveFrozenColumns,
   type ResolvedFreeze,
   type RowMetrics,
+  type RowSpanContext,
 } from '../plugins'
 import { usesFluidSizing } from '../grid-size'
 import type { CellCoordinate } from '../types'
@@ -41,6 +43,7 @@ class GridEngineImpl implements GridEngine {
 
   private columnLefts: number[] = []
   private rowMetrics: RowMetrics = createRowMetrics(0, 28)
+  private spanContext: RowSpanContext | null = null
   private freeze: ResolvedFreeze = resolveFrozenColumns([])
   private viewportWidth = 0
   private viewportHeight = 0
@@ -64,6 +67,7 @@ class GridEngineImpl implements GridEngine {
     )
     this.freeze = resolveFrozenColumns(options.columns, options.frozenColumns)
     this.rowMetrics = createRowMetrics(options.rowCount, options.rowHeight)
+    this.rebuildSpanContext()
 
     this.renderer = new GridRenderer({
       headerScroll: new CellPool(this.shell.layerHeaderScroll),
@@ -89,7 +93,9 @@ class GridEngineImpl implements GridEngine {
         hoverCell: this.hoverCell,
         selectedCell: this.selectedCell,
         getCellContent: this.options.getCellContent,
+        spanContext: this.spanContext,
         virtualization: this.virtualization,
+        scrollActive: this.scrollActive,
       }),
       getRowMetrics: () => this.rowMetrics,
       getFreeze: () => this.freeze,
@@ -117,9 +123,15 @@ class GridEngineImpl implements GridEngine {
   updateOptions(partial: Partial<GridEngineOptions>): void {
     if (this.destroyed) return
 
-    const needsPoolReset =
+    const needsSpanRebuild =
       partial.columns !== undefined ||
       partial.rowCount !== undefined ||
+      partial.rowHeight !== undefined ||
+      partial.getCellContent !== undefined ||
+      partial.rowSpanRevision !== undefined
+
+    const needsPoolReset =
+      needsSpanRebuild ||
       partial.virtualization !== undefined
 
     let layoutAnimation: 'col' | 'row' | 'both' | null = null
@@ -135,6 +147,9 @@ class GridEngineImpl implements GridEngine {
         this.options.rowCount,
         this.options.rowHeight,
       )
+    }
+    if (needsSpanRebuild) {
+      this.rebuildSpanContext()
     }
     if (
       partial.columns ||
@@ -204,6 +219,15 @@ class GridEngineImpl implements GridEngine {
     return this.options.virtualization !== false
   }
 
+  private rebuildSpanContext(): void {
+    this.spanContext = computeRowSpans({
+      rowCount: this.options.rowCount,
+      columns: this.options.columns,
+      getCellContent: this.options.getCellContent,
+      rowMetrics: this.rowMetrics,
+    })
+  }
+
   private applyChrome(): void {
     applyContainerSize(
       this.shell.root,
@@ -259,12 +283,14 @@ class GridEngineImpl implements GridEngine {
 
   private markScrollActive(): void {
     this.scrollActive = true
+    this.shell.root.classList.add('vgrid--scroll-active')
     if (this.scrollIdleTimer !== null) {
       window.clearTimeout(this.scrollIdleTimer)
     }
     this.scrollIdleTimer = window.setTimeout(() => {
       this.scrollActive = false
       this.scrollIdleTimer = null
+      this.shell.root.classList.remove('vgrid--scroll-active')
       this.paintController.schedulePaint(true)
     }, 50)
   }

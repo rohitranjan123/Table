@@ -164,6 +164,16 @@
   font-variant-numeric: tabular-nums;
 }
 
+.vgrid__cell--row-span {
+  contain: strict;
+  align-items: flex-start;
+  padding-top: 6px;
+}
+
+.vgrid--scroll-active .vgrid__cell--row-span {
+  will-change: transform;
+}
+
 @media (prefers-color-scheme: dark) {
   .vgrid {
     color: #9ca3af;

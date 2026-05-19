@@ -10,6 +10,18 @@ export interface CellDomState {
   isFrozenEdge: boolean
   frozenEdgeSide?: 'left' | 'right'
   cellType: GridCell['type']
+  isRowSpan?: boolean
+}
+
+export interface CellLayout {
+  left: number
+  top: number
+  width: number
+  height: number
+  zIndex: number
+  col: number
+  row: number
+  useTransform?: boolean
 }
 
 const BASE = 'vgrid__cell'
@@ -31,36 +43,37 @@ export function applyCellInteraction(
   element.classList.toggle('vgrid__cell--selected', state.isSelected)
 }
 
-export function applyCellPosition(
+function applyCellGeometry(
   element: HTMLDivElement,
-  layout: {
-    left: number
-    top: number
-    width: number
-    height: number
-    zIndex: number
-  },
+  layout: Pick<CellLayout, 'left' | 'top' | 'width' | 'height' | 'zIndex' | 'useTransform'>,
 ): void {
-  element.style.left = `${layout.left}px`
-  element.style.top = `${layout.top}px`
   element.style.width = `${layout.width}px`
   element.style.height = `${layout.height}px`
   element.style.zIndex = String(layout.zIndex)
   element.style.display = ''
+
+  if (layout.useTransform) {
+    element.style.left = '0'
+    element.style.top = '0'
+    element.style.transform = `translate3d(${layout.left}px, ${layout.top}px, 0)`
+  } else {
+    element.style.left = `${layout.left}px`
+    element.style.top = `${layout.top}px`
+    element.style.transform = ''
+  }
+}
+
+export function applyCellPosition(
+  element: HTMLDivElement,
+  layout: Pick<CellLayout, 'left' | 'top' | 'width' | 'height' | 'zIndex' | 'useTransform'>,
+): void {
+  applyCellGeometry(element, layout)
 }
 
 export function applyCellDom(
   el: HTMLDivElement,
   state: CellDomState,
-  layout: {
-    left: number
-    top: number
-    width: number
-    height: number
-    zIndex: number
-    col: number
-    row: number
-  },
+  layout: CellLayout,
   label: string,
 ): void {
   const cls = [
@@ -70,6 +83,7 @@ export function applyCellDom(
     state.isHover ? 'vgrid__cell--hover' : '',
     state.isSelected ? 'vgrid__cell--selected' : '',
     state.cellType === 'number' ? 'vgrid__cell--number' : '',
+    state.isRowSpan ? 'vgrid__cell--row-span' : '',
     state.isFrozenEdge && state.frozenEdgeSide === 'left'
       ? 'vgrid__cell--frozen-edge-left'
       : '',
@@ -82,12 +96,7 @@ export function applyCellDom(
 
   if (el.className !== cls) el.className = cls
 
-  el.style.left = `${layout.left}px`
-  el.style.top = `${layout.top}px`
-  el.style.width = `${layout.width}px`
-  el.style.height = `${layout.height}px`
-  el.style.zIndex = String(layout.zIndex)
-  el.style.display = ''
+  applyCellGeometry(el, layout)
 
   el.setAttribute('role', state.isHeader ? 'columnheader' : 'gridcell')
   el.setAttribute('aria-colindex', String(layout.col + 1))
@@ -95,6 +104,7 @@ export function applyCellDom(
   el.dataset.col = String(layout.col)
   el.dataset.row = state.isHeader ? '' : String(layout.row)
   el.dataset.header = state.isHeader ? '1' : '0'
+  el.dataset.span = state.isRowSpan ? '1' : '0'
 
   if (el.textContent !== label) el.textContent = label
 }

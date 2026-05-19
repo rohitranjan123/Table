@@ -24,6 +24,8 @@ export interface GridEngineOptions {
   className?: string
   onCellHover?: (cell: CellCoordinate | null) => void
   onCellSelect?: (cell: CellCoordinate) => void
+  /** Bump to recompute row-span metadata when `getCellContent` is stable. */
+  rowSpanRevision?: number
 }
 
 export interface GridScrollPosition {

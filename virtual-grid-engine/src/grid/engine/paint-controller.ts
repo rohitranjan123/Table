@@ -215,6 +215,8 @@ export class PaintController {
       hoverCell: options.hoverCell,
       selectedCell: options.selectedCell,
       getCellContent: options.getCellContent,
+      spanContext: options.spanContext ?? null,
+      scrollActive: options.scrollActive ?? false,
       deferTrimFree: this.deps.isScrollActive(),
     })
   }

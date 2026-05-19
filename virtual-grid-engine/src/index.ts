@@ -15,6 +15,9 @@ export {
   type GridColumn,
   type GridSize,
   type RowHeightSpec,
+  type SpanMap,
+  type SpanMeta,
+  type SpanRowsSpec,
   type VirtualizedGridProps,
   type VisibleBounds,
 } from './grid'

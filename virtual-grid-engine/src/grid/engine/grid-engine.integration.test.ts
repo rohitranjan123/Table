@@ -168,4 +168,36 @@ describe('createGrid integration', () => {
     expect(divider).not.toBeNull()
     expect((divider as HTMLElement).style.display).not.toBe('none')
   })
+
+  it('renders row-span anchor cells taller than a single row', async () => {
+    const spanColumns: GridColumn[] = [
+      { dataIndex: 'group', title: 'Group', width: 100, spanRows: true },
+      { dataIndex: 'value', title: 'Value', width: 100 },
+    ]
+    const spanGetCell = ([col, row]: CellCoordinate): GridCell => {
+      if (col === 0) {
+        return { type: 'text', data: `G${Math.floor(row / 3)}` }
+      }
+      return { type: 'text', data: `v${row}` }
+    }
+
+    engine = createGrid(host, {
+      gridId: 'integration-span',
+      columns: spanColumns,
+      rowCount: 30,
+      getCellContent: spanGetCell,
+      headerHeight: 32,
+      rowHeight: 28,
+      width: 400,
+      height: 300,
+    })
+    await flushPaint()
+
+    const spanCell = host.querySelector(
+      '.vgrid__cell--row-span[data-span="1"]',
+    ) as HTMLElement | null
+    expect(spanCell).not.toBeNull()
+    expect(Number.parseFloat(spanCell!.style.height)).toBeGreaterThan(28)
+    expect(spanCell!.dataset.row).toBe('0')
+  })
 })
