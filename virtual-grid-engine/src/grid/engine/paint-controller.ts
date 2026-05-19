@@ -209,6 +209,8 @@ export class PaintController {
       rowCount: options.rowCount,
       rowMetrics,
       headerHeight: options.headerHeight,
+      headerTextOverflow: options.headerTextOverflow,
+      cellTextOverflow: options.cellTextOverflow,
       freeze: this.deps.getFreeze(),
       scrollLeft,
       scrollTop,

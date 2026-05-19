@@ -10,7 +10,17 @@ import {
   type RowSpanContext,
 } from '../plugins'
 import type { RowMetrics } from '../plugins'
-import type { CellCoordinate, GridCell, GridColumn, VisibleBounds } from '../types'
+import {
+  resolveCellTextOverflow,
+  resolveHeaderTextOverflow,
+} from '../plugins'
+import type {
+  CellCoordinate,
+  CellTextOverflow,
+  GridCell,
+  GridColumn,
+  VisibleBounds,
+} from '../types'
 import { CellPool } from './CellPool'
 import {
   applyCellDom,
@@ -36,6 +46,8 @@ export interface GridRendererContext {
   rowCount: number
   rowMetrics: RowMetrics
   headerHeight: number
+  headerTextOverflow: CellTextOverflow
+  cellTextOverflow: CellTextOverflow
   freeze: ResolvedFreeze
   scrollLeft: number
   scrollTop: number
@@ -243,6 +255,17 @@ export class GridRenderer {
     return `${prefix}:${col}:span@${anchorRow}`
   }
 
+  private textOverflowForCell(
+    col: number,
+    isHeader: boolean,
+    context: GridRendererContext,
+  ): CellTextOverflow {
+    const column = context.columns[col]!
+    return isHeader
+      ? resolveHeaderTextOverflow(column, context.headerTextOverflow)
+      : resolveCellTextOverflow(column, context.cellTextOverflow)
+  }
+
   private domState(
     col: number,
     row: number,
@@ -267,6 +290,7 @@ export class GridRenderer {
       frozenEdgeSide: edge === false ? undefined : edge,
       cellType,
       isRowSpan,
+      textOverflow: this.textOverflowForCell(col, isHeader, context),
     }
   }
 
@@ -454,7 +478,14 @@ export class GridRenderer {
       return false
     }
     const spanFlag = isRowSpan ? '1' : '0'
-    return element.dataset.span === spanFlag
+    if (element.dataset.span !== spanFlag) return false
+
+    const expectedOverflow = this.textOverflowForCell(
+      col,
+      isHeader,
+      _context,
+    )
+    return element.dataset.textOverflow === expectedOverflow
   }
 
   private interactionState(

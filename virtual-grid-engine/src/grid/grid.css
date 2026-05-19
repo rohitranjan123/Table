@@ -101,14 +101,56 @@
   box-sizing: border-box;
   display: flex;
   align-items: center;
+  min-width: 0;
   padding: 0 8px;
   overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
   box-shadow: inset 0 0 0 1px #e5e4e7;
   pointer-events: auto;
   background: #fff;
   cursor: default;
+}
+
+/* Text lives in a flex child so ellipsis works (not on the flex container itself). */
+.vgrid__cell__label {
+  display: block;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.vgrid__cell--to-ellipsis .vgrid__cell__label {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.vgrid__cell--to-overflow {
+  overflow: visible;
+}
+
+.vgrid__cell--to-overflow .vgrid__cell__label {
+  overflow: visible;
+  white-space: nowrap;
+  flex: 0 1 auto;
+}
+
+.vgrid__cell--to-wrap {
+  align-items: flex-start;
+  padding-top: 4px;
+  padding-bottom: 4px;
+}
+
+.vgrid__cell--to-wrap .vgrid__cell__label {
+  white-space: normal;
+  word-break: break-word;
+  width: 100%;
+}
+
+.vgrid__cell--number .vgrid__cell__label {
+  text-align: right;
+}
+
+.vgrid--text-overflow-visible .vgrid__layer {
+  overflow: visible;
 }
 
 .vgrid__cell--frozen-edge-left {

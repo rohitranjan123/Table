@@ -40,7 +40,13 @@ function buildEnterpriseColumns(): GridColumn[] {
 
   const tradeCols: GridColumn[] = [
     { dataIndex: 'tradeId', title: 'Trade ID', width: 128 },
-    { dataIndex: 'counterparty', title: 'Counterparty', width: 132 },
+    {
+      dataIndex: 'counterparty',
+      title: 'Counterparty (wrap)',
+      width: 100,
+      headerTextOverflow: 'ellipsis',
+      cellTextOverflow: 'wrap',
+    },
     { dataIndex: 'side', title: 'Side', width: 64 },
     { dataIndex: 'currency', title: 'CCY', width: 56 },
     { dataIndex: 'notional', title: 'Notional', width: 96 },

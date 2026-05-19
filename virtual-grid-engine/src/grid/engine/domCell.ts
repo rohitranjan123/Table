@@ -1,6 +1,6 @@
 /** @internal Cell DOM creation and class/style application. */
 
-import type { GridCell } from '../types'
+import type { CellTextOverflow, GridCell } from '../types'
 
 export interface CellDomState {
   isHeader: boolean
@@ -11,6 +11,7 @@ export interface CellDomState {
   frozenEdgeSide?: 'left' | 'right'
   cellType: GridCell['type']
   isRowSpan?: boolean
+  textOverflow: CellTextOverflow
 }
 
 export interface CellLayout {
@@ -25,6 +26,31 @@ export interface CellLayout {
 }
 
 const BASE = 'vgrid__cell'
+const LABEL_CLASS = 'vgrid__cell__label'
+
+const OVERFLOW_CLASS: Record<CellTextOverflow, string> = {
+  ellipsis: 'vgrid__cell--to-ellipsis',
+  overflow: 'vgrid__cell--to-overflow',
+  wrap: 'vgrid__cell--to-wrap',
+}
+
+function overflowClass(mode: CellTextOverflow | undefined): string {
+  return OVERFLOW_CLASS[mode ?? 'ellipsis']
+}
+
+function setCellLabel(el: HTMLDivElement, label: string): void {
+  let labelEl = el.firstElementChild
+  if (
+    labelEl?.nodeType !== Node.ELEMENT_NODE ||
+    !(labelEl as HTMLElement).classList.contains(LABEL_CLASS)
+  ) {
+    el.replaceChildren()
+    labelEl = document.createElement('span')
+    labelEl.className = LABEL_CLASS
+    el.appendChild(labelEl)
+  }
+  if (labelEl.textContent !== label) labelEl.textContent = label
+}
 
 export function createCellElement(): HTMLDivElement {
   const el = document.createElement('div')
@@ -84,6 +110,7 @@ export function applyCellDom(
     state.isSelected ? 'vgrid__cell--selected' : '',
     state.cellType === 'number' ? 'vgrid__cell--number' : '',
     state.isRowSpan ? 'vgrid__cell--row-span' : '',
+    overflowClass(state.textOverflow),
     state.isFrozenEdge && state.frozenEdgeSide === 'left'
       ? 'vgrid__cell--frozen-edge-left'
       : '',
@@ -105,8 +132,9 @@ export function applyCellDom(
   el.dataset.row = state.isHeader ? '' : String(layout.row)
   el.dataset.header = state.isHeader ? '1' : '0'
   el.dataset.span = state.isRowSpan ? '1' : '0'
+  el.dataset.textOverflow = state.textOverflow ?? 'ellipsis'
 
-  if (el.textContent !== label) el.textContent = label
+  setCellLabel(el, label)
 }
 
 export function hideCellElement(el: HTMLDivElement): void {

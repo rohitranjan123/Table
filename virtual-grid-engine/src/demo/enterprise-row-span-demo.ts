@@ -33,7 +33,7 @@ export function createEnterpriseGetCellContent(): (
 export const ENTERPRISE_DEMO_CONFIG = {
   id: 'enterprise',
   title: 'Fintech trade ledger (production-scale)',
-  description: `${ENTERPRISE_ROW_COUNT.toLocaleString()} trades · ${ENTERPRISE_COLUMN_COUNT} cols · Region → Country → Desk → Product row spans · frozen hierarchy · derived risk metrics`,
+  description: `${ENTERPRISE_ROW_COUNT.toLocaleString()} trades · ${ENTERPRISE_COLUMN_COUNT} cols · Region → Country → Desk → Product row spans · Counterparty column uses wrap overflow · frozen hierarchy`,
   rowCount: ENTERPRISE_ROW_COUNT,
   columns: ENTERPRISE_COLUMNS,
   frozenColumns: ENTERPRISE_FROZEN_COLUMNS,

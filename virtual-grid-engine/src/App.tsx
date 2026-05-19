@@ -119,6 +119,7 @@ function EnterpriseDemoPanel() {
           height={cfg.height}
           onCellHover={setHover}
           onCellSelect={setSelected}
+          headerTextOverflow="ellipsis"
         />
       </div>
     </article>

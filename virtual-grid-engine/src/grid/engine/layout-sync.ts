@@ -9,6 +9,8 @@ import type { GridEngineOptions } from './types'
 export interface LayoutSyncParams {
   shell: GridDomShell
   options: GridEngineOptions
+  /** Measured header band when any column uses `headerTextOverflow: 'wrap'`. */
+  layoutHeaderHeight: number
   freeze: ResolvedFreeze
   rowMetrics: RowMetrics
   viewportWidth: number
@@ -107,12 +109,11 @@ export function syncScrollbarGutter(shell: GridDomShell): void {
 }
 
 export function syncSpacerAndLayers(params: LayoutSyncParams): void {
-  const { shell, options, freeze, rowMetrics, viewportWidth, viewportHeight } =
-    params
-  const { headerHeight } = options
+  const { shell, freeze, rowMetrics, viewportWidth, viewportHeight } = params
+  const { layoutHeaderHeight } = params
   const totalWidth = freeze.layoutWidth
   const totalBodyHeight = rowMetrics.getTotalBodyHeight()
-  const totalHeight = headerHeight + totalBodyHeight
+  const totalHeight = layoutHeaderHeight + totalBodyHeight
   const { leftWidth, rightWidth } = freeze
 
   shell.spacer.style.width = `${totalWidth}px`
@@ -121,26 +122,44 @@ export function syncSpacerAndLayers(params: LayoutSyncParams): void {
   shell.spacer.style.minHeight = `${totalHeight}px`
 
   const headerWidth = Math.max(0, viewportWidth - leftWidth - rightWidth)
-  const bodyHeight = Math.max(0, viewportHeight - headerHeight)
+  const bodyHeight = Math.max(0, viewportHeight - layoutHeaderHeight)
 
-  setLayerStyle(shell.layerHeaderScroll, leftWidth, 0, headerWidth, headerHeight)
-  setLayerStyle(shell.layerHeaderFrozenLeft, 0, 0, leftWidth, headerHeight)
+  setLayerStyle(
+    shell.layerHeaderScroll,
+    leftWidth,
+    0,
+    headerWidth,
+    layoutHeaderHeight,
+  )
+  setLayerStyle(shell.layerHeaderFrozenLeft, 0, 0, leftWidth, layoutHeaderHeight)
   setLayerStyle(
     shell.layerHeaderFrozenRight,
     Math.max(0, viewportWidth - rightWidth),
     0,
     rightWidth,
-    headerHeight,
+    layoutHeaderHeight,
   )
-  setLayerStyle(shell.layerFrozenLeft, 0, headerHeight, leftWidth, bodyHeight)
+  setLayerStyle(
+    shell.layerFrozenLeft,
+    0,
+    layoutHeaderHeight,
+    leftWidth,
+    bodyHeight,
+  )
   setLayerStyle(
     shell.layerFrozenRight,
     Math.max(0, viewportWidth - rightWidth),
-    headerHeight,
+    layoutHeaderHeight,
     rightWidth,
     bodyHeight,
   )
-  setLayerStyle(shell.layerBody, leftWidth, headerHeight, headerWidth, bodyHeight)
+  setLayerStyle(
+    shell.layerBody,
+    leftWidth,
+    layoutHeaderHeight,
+    headerWidth,
+    bodyHeight,
+  )
 
   shell.freezeDividerLeft.style.left = `${leftWidth - 1}px`
   shell.freezeDividerLeft.style.display = leftWidth > 0 ? '' : 'none'

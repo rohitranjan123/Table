@@ -5,6 +5,7 @@ export { createGrid } from './engine'
 export type { GridEngine, GridEngineOptions, GridScrollPosition } from './engine'
 export type {
   CellCoordinate,
+  CellTextOverflow,
   FrozenColumns,
   GridCell,
   GridColumn,

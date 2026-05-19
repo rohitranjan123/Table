@@ -13,6 +13,7 @@ export {
   type FrozenColumns,
   type GridCell,
   type GridColumn,
+  type CellTextOverflow,
   type GridSize,
   type RowHeightSpec,
   type SpanMap,

@@ -50,7 +50,9 @@ Consumers use exports from `src/index.ts`:
 | `columns` | Column descriptors (`dataIndex`, `title`, `width`) |
 | `rowCount` | Logical row count |
 | `rowHeight` | Fixed height or per-index function |
-| `headerHeight` | Header band height |
+| `headerHeight` | Header band height (minimum when headers use `wrap`) |
+| `headerTextOverflow` / `cellTextOverflow` | Grid default: `ellipsis`, `overflow`, or `wrap` |
+| `columns[].headerTextOverflow` / `cellTextOverflow` | Per-column override of grid defaults |
 | `getCellContent` | Sync callback `(col, row) → GridCell` for body cells |
 | `frozenColumns` | Optional `{ left?, right? }` lists of `dataIndex` |
 | `columns[].spanRows` | Optional `true` (merge equal `GridCell.data`) or callback to continue span from row above |

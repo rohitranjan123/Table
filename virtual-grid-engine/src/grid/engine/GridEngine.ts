@@ -1,12 +1,16 @@
 import {
   buildColumnLefts,
   computeRowSpans,
+  computeEffectiveHeaderHeight,
   createRowMetrics,
+  createWrapAwareRowMetrics,
+  gridHasTextOverflowVisible,
   resolveFrozenColumns,
   type ResolvedFreeze,
   type RowMetrics,
   type RowSpanContext,
 } from '../plugins'
+import type { CellTextOverflow } from '../types'
 import { usesFluidSizing } from '../grid-size'
 import type { CellCoordinate } from '../types'
 import { CellPool } from './CellPool'
@@ -43,6 +47,7 @@ class GridEngineImpl implements GridEngine {
 
   private columnLefts: number[] = []
   private rowMetrics: RowMetrics = createRowMetrics(0, 28)
+  private effectiveHeaderHeight = 0
   private spanContext: RowSpanContext | null = null
   private freeze: ResolvedFreeze = resolveFrozenColumns([])
   private viewportWidth = 0
@@ -66,7 +71,7 @@ class GridEngineImpl implements GridEngine {
       options.className,
     )
     this.freeze = resolveFrozenColumns(options.columns, options.frozenColumns)
-    this.rowMetrics = createRowMetrics(options.rowCount, options.rowHeight)
+    this.rebuildLayoutMetrics()
     this.rebuildSpanContext()
 
     this.renderer = new GridRenderer({
@@ -86,7 +91,9 @@ class GridEngineImpl implements GridEngine {
         columnLefts: this.columnLefts,
         rowCount: this.options.rowCount,
         rowMetrics: this.rowMetrics,
-        headerHeight: this.options.headerHeight,
+        headerHeight: this.effectiveHeaderHeight,
+        headerTextOverflow: this.headerTextOverflow,
+        cellTextOverflow: this.cellTextOverflow,
         freeze: this.freeze,
         scrollLeft: this.shell.scroller.scrollLeft,
         scrollTop: this.shell.scroller.scrollTop,
@@ -130,23 +137,32 @@ class GridEngineImpl implements GridEngine {
       partial.getCellContent !== undefined ||
       partial.rowSpanRevision !== undefined
 
-    const needsPoolReset =
+    const needsLayoutMetricsRebuild =
       needsSpanRebuild ||
+      partial.headerTextOverflow !== undefined ||
+      partial.cellTextOverflow !== undefined ||
+      partial.headerHeight !== undefined
+
+    const needsPoolReset =
+      needsLayoutMetricsRebuild ||
       partial.virtualization !== undefined
 
     let layoutAnimation: 'col' | 'row' | 'both' | null = null
     if (partial.frozenColumns !== undefined) layoutAnimation = 'col'
-    if (partial.rowHeight !== undefined || partial.rowCount !== undefined) {
+    if (
+      partial.rowHeight !== undefined ||
+      partial.rowCount !== undefined ||
+      partial.headerTextOverflow !== undefined ||
+      partial.cellTextOverflow !== undefined ||
+      partial.headerHeight !== undefined
+    ) {
       layoutAnimation = layoutAnimation === 'col' ? 'both' : 'row'
     }
     if (partial.columns !== undefined) layoutAnimation = 'both'
 
     this.options = { ...this.options, ...partial }
-    if (partial.rowCount !== undefined || partial.rowHeight !== undefined) {
-      this.rowMetrics = createRowMetrics(
-        this.options.rowCount,
-        this.options.rowHeight,
-      )
+    if (needsLayoutMetricsRebuild) {
+      this.rebuildLayoutMetrics()
     }
     if (needsSpanRebuild) {
       this.rebuildSpanContext()
@@ -219,6 +235,42 @@ class GridEngineImpl implements GridEngine {
     return this.options.virtualization !== false
   }
 
+  private get headerTextOverflow(): CellTextOverflow {
+    return this.options.headerTextOverflow ?? 'ellipsis'
+  }
+
+  private get cellTextOverflow(): CellTextOverflow {
+    return this.options.cellTextOverflow ?? 'ellipsis'
+  }
+
+  private wrapMetricsInput() {
+    return {
+      columns: this.options.columns,
+      rowCount: this.options.rowCount,
+      rowHeight: this.options.rowHeight,
+      headerHeight: this.options.headerHeight,
+      headerTextOverflow: this.headerTextOverflow,
+      cellTextOverflow: this.cellTextOverflow,
+      getCellContent: this.options.getCellContent,
+    }
+  }
+
+  private rebuildLayoutMetrics(): void {
+    const input = this.wrapMetricsInput()
+    this.effectiveHeaderHeight = computeEffectiveHeaderHeight(input)
+    this.rowMetrics = createWrapAwareRowMetrics(input)
+    this.syncTextOverflowVisibleClass()
+  }
+
+  private syncTextOverflowVisibleClass(): void {
+    const visible = gridHasTextOverflowVisible(
+      this.options.columns,
+      this.headerTextOverflow,
+      this.cellTextOverflow,
+    )
+    this.shell.root.classList.toggle('vgrid--text-overflow-visible', visible)
+  }
+
   private rebuildSpanContext(): void {
     this.spanContext = computeRowSpans({
       rowCount: this.options.rowCount,
@@ -255,6 +307,7 @@ class GridEngineImpl implements GridEngine {
     syncSpacerAndLayers({
       shell: this.shell,
       options: this.options,
+      layoutHeaderHeight: this.effectiveHeaderHeight,
       freeze: this.freeze,
       rowMetrics: this.rowMetrics,
       viewportWidth: this.viewportWidth,

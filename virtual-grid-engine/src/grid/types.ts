@@ -1,7 +1,8 @@
 import type { FrozenColumns } from './plugins/freeze-columns'
 import type { SpanMap, SpanMeta, SpanRowsSpec } from './plugins/row-span'
+import type { CellTextOverflow } from './plugins/text-overflow'
 
-export type { FrozenColumns, SpanMap, SpanMeta, SpanRowsSpec }
+export type { CellTextOverflow, FrozenColumns, SpanMap, SpanMeta, SpanRowsSpec }
 
 /** Column descriptor — width drives horizontal layout prefix sums. */
 export interface GridColumn {
@@ -15,6 +16,10 @@ export interface GridColumn {
    * continues the span from the row above.
    */
   spanRows?: SpanRowsSpec
+  /** Header text when wider than `width`. @default grid `headerTextOverflow` or `'ellipsis'`. */
+  headerTextOverflow?: CellTextOverflow
+  /** Body cell text when wider than `width`. @default grid `cellTextOverflow` or `'ellipsis'`. */
+  cellTextOverflow?: CellTextOverflow
 }
 
 /** Cell payload returned by `getCellContent`. */
@@ -40,6 +45,18 @@ export interface VirtualizedGridProps {
   rowCount: number
   getCellContent: (cell: CellCoordinate) => GridCell
   headerHeight: number
+  /**
+   * Header text when wider than the column. `ellipsis` trims with "…",
+   * `overflow` draws past the cell edge, `wrap` grows the header band height.
+   * @default 'ellipsis'
+   */
+  headerTextOverflow?: CellTextOverflow
+  /**
+   * Body cell text when wider than the column. `wrap` grows each row to fit
+   * wrapped content (uses the larger of `rowHeight` and measured height).
+   * @default 'ellipsis'
+   */
+  cellTextOverflow?: CellTextOverflow
   rowHeight: RowHeightSpec
   /** Pin columns by `dataIndex` on the left and/or right, in display order. */
   frozenColumns?: FrozenColumns

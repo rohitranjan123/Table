@@ -1,5 +1,6 @@
 import type {
   CellCoordinate,
+  CellTextOverflow,
   FrozenColumns,
   GridCell,
   GridColumn,
@@ -14,6 +15,8 @@ export interface GridEngineOptions {
   rowCount: number
   getCellContent: (cell: CellCoordinate) => GridCell
   headerHeight: number
+  headerTextOverflow?: CellTextOverflow
+  cellTextOverflow?: CellTextOverflow
   rowHeight: RowHeightSpec
   frozenColumns?: FrozenColumns
   virtualization?: boolean
