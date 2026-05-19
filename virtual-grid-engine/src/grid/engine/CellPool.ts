@@ -37,12 +37,15 @@ export class CellPool {
     }
   }
 
-  /** Hide and pool every cell whose key is not in `keep`. */
-  prune(keep: ReadonlySet<string>): void {
+  /**
+   * Hide cells outside the visible window. Always runs during scroll so
+   * reversed direction does not leave stale cells on screen.
+   */
+  prune(keep: ReadonlySet<string>, trimFree = true): void {
     for (const key of [...this.active.keys()]) {
       if (!keep.has(key)) this.release(key)
     }
-    this.trimExcessFree()
+    if (trimFree) this.trimExcessFree()
   }
 
   /** Drop all DOM nodes — use when data shape or virtualization mode changes. */

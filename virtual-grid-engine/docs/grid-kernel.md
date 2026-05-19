@@ -79,7 +79,8 @@ Do not implement headless or config resolution inside `GridEngine`.
 
 - **Row metrics cache** (`createRowMetrics`): prefix-sum row offsets so `getRowTop` / `findRowIndexAtOffset` are O(1) / O(log n) — required for function `rowHeight` at large `rowCount`.
 - **RAF coalescing** (`ScrollScheduler`): at most one paint per animation frame.
-- **Scroll-active mode**: while the scrollbar is moving, **prune is deferred** and existing cells use **position-only DOM updates** (`applyCellPosition`); a full prune runs ~120ms after scroll stops.
+- **Scroll-active mode**: off-window cells are **always hidden** each frame; only free-pool trimming is deferred until scroll idles (~50ms). Position-only updates apply when cell content is unchanged.
+- **Wheel axis lock** clears on direction reversal and on native scrollbar scroll so fast left↔right (or up↔down) does not stick for 1–2s.
 
 ## Pre-merge checklist
 

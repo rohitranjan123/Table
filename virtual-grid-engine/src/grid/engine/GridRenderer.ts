@@ -39,7 +39,8 @@ export interface GridRendererContext {
   hoverCell: CellCoordinate | null
   selectedCell: CellCoordinate | null
   getCellContent: (cell: CellCoordinate) => GridCell
-  deferPrune?: boolean
+  /** When true, skip trimming the free-cell pool this frame (scroll perf). */
+  deferTrimFree?: boolean
 }
 
 type CellZone =
@@ -132,10 +133,9 @@ export class GridRenderer {
       }
     }
 
-    if (!context.deferPrune) {
-      for (const zone of Object.keys(keepSets) as CellZone[]) {
-        this.layers[ZONE_POOL[zone]].prune(keepSets[zone])
-      }
+    const trimFree = context.deferTrimFree !== true
+    for (const zone of Object.keys(keepSets) as CellZone[]) {
+      this.layers[ZONE_POOL[zone]].prune(keepSets[zone], trimFree)
     }
   }
 

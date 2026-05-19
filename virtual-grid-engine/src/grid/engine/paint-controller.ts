@@ -53,7 +53,53 @@ export class PaintController {
       this.paint(true)
       return
     }
+    // Coalesce to one paint per frame; always read latest scrollTop/Left inside paint().
     this.scheduler.schedule(() => this.paint(false))
+  }
+
+  /** Scroll burst: paint immediately when the visible window jumps (direction reversal). */
+  scheduleScrollPaint(): void {
+    if (this.deps.isDestroyed()) return
+
+    const { shell } = this.deps
+    const scrollLeft = shell.scroller.scrollLeft
+    const scrollTop = shell.scroller.scrollTop
+    const options = this.deps.getOptions()
+    const rowMetrics = this.deps.getRowMetrics()
+    const { width: viewportWidth, height: viewportHeight } =
+      this.deps.getViewportSize()
+
+    if (viewportWidth <= 0 || viewportHeight <= 0) return
+
+    const { bounds } = computeVisibleBounds({
+      scrollLeft,
+      scrollTop,
+      viewportWidth,
+      viewportHeight,
+      headerHeight: options.headerHeight,
+      rowCount: options.rowCount,
+      rowMetrics,
+      columns: options.columns,
+      freeze: this.deps.getFreeze(),
+      rowHint: this.rowHint,
+      virtualization: options.virtualization,
+      gridId: this.deps.getGridId(),
+    })
+
+    const windowJumped =
+      this.lastBounds.colEnd >= this.lastBounds.colStart &&
+      (bounds.colStart !== this.lastBounds.colStart ||
+        bounds.colEnd !== this.lastBounds.colEnd ||
+        bounds.rowStart !== this.lastBounds.rowStart ||
+        bounds.rowEnd !== this.lastBounds.rowEnd)
+
+    if (windowJumped) {
+      this.scheduler.cancel()
+      this.paint(false)
+      return
+    }
+
+    this.schedulePaint(false)
   }
 
   /** Synchronous hover/selection update — skips RAF and full cell repaint when layout is stable. */
@@ -169,7 +215,7 @@ export class PaintController {
       hoverCell: options.hoverCell,
       selectedCell: options.selectedCell,
       getCellContent: options.getCellContent,
-      deferPrune: this.deps.isScrollActive(),
+      deferTrimFree: this.deps.isScrollActive(),
     })
   }
 

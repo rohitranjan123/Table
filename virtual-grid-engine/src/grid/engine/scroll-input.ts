@@ -2,12 +2,17 @@
 
 import type { CellCoordinate } from '../types'
 import type { GridDomShell } from './dom-shell'
-import { resolveWheelDeltas } from './wheel'
-
-type WheelAxis = 'x' | 'y'
+import {
+  createWheelDeltaState,
+  recordWheelDeltas,
+  resolveWheelDeltas,
+  type WheelDeltaState,
+} from './wheel'
 
 export interface ScrollInputCallbacks {
   onSchedulePaint: (force?: boolean) => void
+  /** Native scrollbar / programmatic scroll — may sync-paint on window jump. */
+  onScheduleScrollPaint?: () => void
   onScheduleInteractionPaint: () => void
   onCellHover: (cell: CellCoordinate | null) => void
   onCellSelect: (cell: CellCoordinate) => void
@@ -44,10 +49,19 @@ export function attachScrollInput(
   setHoverCell: (cell: CellCoordinate | null) => void,
   setSelectedCell: (cell: CellCoordinate) => void,
 ): ScrollInputHandle {
-  let wheelAxis: WheelAxis | null = null
+  const wheelState: WheelDeltaState = createWheelDeltaState()
   let wheelAxisTimer: number | null = null
 
-  const onScrollerScroll = () => callbacks.onSchedulePaint()
+  const clearWheelLock = () => {
+    wheelState.lockedAxis = null
+    wheelState.lastDeltaX = 0
+    wheelState.lastDeltaY = 0
+  }
+
+  const onScrollerScroll = () => {
+    clearWheelLock()
+    callbacks.onScheduleScrollPaint?.() ?? callbacks.onSchedulePaint()
+  }
 
   const onRootWheel = (event: WheelEvent) => {
     const { scroller } = shell
@@ -55,18 +69,19 @@ export function attachScrollInput(
     const maxLeft = scroller.scrollWidth - scroller.clientWidth
     if (maxTop <= 0 && maxLeft <= 0) return
 
-    const { deltaX, deltaY, axis } = resolveWheelDeltas(event, wheelAxis)
+    const { deltaX, deltaY, axis } = resolveWheelDeltas(event, wheelState)
     if (deltaX === 0 && deltaY === 0) return
 
+    recordWheelDeltas(wheelState, deltaX, deltaY, axis)
+
     if (axis !== null) {
-      wheelAxis = axis
       if (wheelAxisTimer !== null) {
         window.clearTimeout(wheelAxisTimer)
       }
       wheelAxisTimer = window.setTimeout(() => {
-        wheelAxis = null
+        clearWheelLock()
         wheelAxisTimer = null
-      }, 120)
+      }, 50)
     }
 
     let nextTop = scroller.scrollTop
@@ -132,10 +147,8 @@ export function attachScrollInput(
         window.clearTimeout(wheelAxisTimer)
         wheelAxisTimer = null
       }
-      wheelAxis = null
+      clearWheelLock()
     },
-    clearWheelAxis() {
-      wheelAxis = null
-    },
+    clearWheelAxis: clearWheelLock,
   }
 }

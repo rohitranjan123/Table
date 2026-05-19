@@ -248,7 +248,7 @@ class GridEngineImpl implements GridEngine {
       this.scrollActive = false
       this.scrollIdleTimer = null
       this.paintController.schedulePaint(true)
-    }, 120)
+    }, 50)
   }
 
   private bindInput(): void {
@@ -258,6 +258,10 @@ class GridEngineImpl implements GridEngine {
         onSchedulePaint: (force) => {
           if (!force) this.markScrollActive()
           this.paintController.schedulePaint(force)
+        },
+        onScheduleScrollPaint: () => {
+          this.markScrollActive()
+          this.paintController.scheduleScrollPaint()
         },
         onScheduleInteractionPaint: () =>
           this.paintController.scheduleInteractionPaint(),
