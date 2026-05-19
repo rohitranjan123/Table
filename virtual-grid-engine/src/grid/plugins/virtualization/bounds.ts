@@ -19,6 +19,7 @@ export interface ComputeVisibleBoundsParams {
   freeze: ResolvedFreeze
   rowHint: number
   virtualization: boolean
+  gridId: string
 }
 
 export function computeVisibleBounds(
@@ -36,6 +37,7 @@ export function computeVisibleBounds(
     freeze,
     rowHint,
     virtualization,
+    gridId,
   } = params
 
   const colCount = columns.length
@@ -46,7 +48,7 @@ export function computeVisibleBounds(
     }
   }
 
-  if (!isVirtualizationEnabled(virtualization, rowCount, colCount)) {
+  if (!isVirtualizationEnabled(virtualization, rowCount, colCount, gridId)) {
     return {
       bounds: {
         colStart: 0,

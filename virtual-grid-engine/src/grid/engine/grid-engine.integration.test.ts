@@ -43,6 +43,7 @@ describe('createGrid integration', () => {
 
   it('mounts a grid root with ARIA grid role', async () => {
     engine = createGrid(host, {
+      gridId: 'integration-test',
       columns: COLUMNS,
       rowCount: 50,
       getCellContent,
@@ -62,6 +63,7 @@ describe('createGrid integration', () => {
 
   it('destroy removes the grid from the DOM', async () => {
     engine = createGrid(host, {
+      gridId: 'integration-test',
       columns: COLUMNS,
       rowCount: 10,
       getCellContent,
@@ -79,6 +81,7 @@ describe('createGrid integration', () => {
 
   it('virtualizes body cells to a small window', async () => {
     engine = createGrid(host, {
+      gridId: 'integration-test',
       columns: COLUMNS,
       rowCount: 500,
       getCellContent,
@@ -99,6 +102,7 @@ describe('createGrid integration', () => {
 
   it('scrollTo updates scroll position', async () => {
     engine = createGrid(host, {
+      gridId: 'integration-test',
       columns: COLUMNS,
       rowCount: 200,
       getCellContent,
@@ -117,6 +121,7 @@ describe('createGrid integration', () => {
 
   it('frozen left columns render in dedicated layers', async () => {
     engine = createGrid(host, {
+      gridId: 'integration-test',
       columns: COLUMNS,
       rowCount: 20,
       getCellContent,
@@ -146,6 +151,7 @@ describe('createGrid integration', () => {
 
   it('updateOptions with new frozen columns repaints frozen layer', async () => {
     engine = createGrid(host, {
+      gridId: 'integration-test',
       columns: COLUMNS,
       rowCount: 10,
       getCellContent,

@@ -20,6 +20,11 @@ export type RowHeightSpec = number | ((index: number) => number)
 export type CellCoordinate = [col: number, row: number]
 
 export interface VirtualizedGridProps {
+  /**
+   * Stable id for this grid instance (ARIA + `data-vgrid-id`).
+   * Omit to use React `useId()` — required when multiple grids share a view.
+   */
+  gridId?: string
   columns: GridColumn[]
   rowCount: number
   getCellContent: (cell: CellCoordinate) => GridCell

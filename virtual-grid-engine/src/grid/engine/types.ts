@@ -7,6 +7,8 @@ import type {
 } from '../types'
 
 export interface GridEngineOptions {
+  /** Unique instance id — scopes DOM (`data-vgrid-id`) and dev warnings. */
+  gridId: string
   columns: GridColumn[]
   rowCount: number
   getCellContent: (cell: CellCoordinate) => GridCell

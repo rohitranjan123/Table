@@ -1,3 +1,10 @@
+/** React mount host — one per VirtualizedGrid instance. */
+.vgrid-host {
+  position: relative;
+  contain: layout style;
+  isolation: isolate;
+}
+
 .vgrid {
   position: relative;
   overflow: hidden;

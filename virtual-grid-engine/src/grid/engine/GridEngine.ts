@@ -54,7 +54,11 @@ class GridEngineImpl implements GridEngine {
 
   constructor(container: HTMLElement, options: GridEngineOptions) {
     this.options = options
-    this.shell = createGridDomShell(container, options.className)
+    this.shell = createGridDomShell(
+      container,
+      options.gridId,
+      options.className,
+    )
     this.freeze = resolveFrozenColumns(options.columns, options.frozenColumns)
     this.rowMetrics = createRowMetrics(options.rowCount, options.rowHeight)
 
@@ -94,6 +98,7 @@ class GridEngineImpl implements GridEngine {
       isDestroyed: () => this.destroyed,
       isScrollActive: () => this.scrollActive,
       onScrollActivity: () => this.markScrollActive(),
+      getGridId: () => this.options.gridId,
     })
 
     this.columnLefts = buildColumnLefts(options.columns)

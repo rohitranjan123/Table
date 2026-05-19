@@ -1,14 +1,15 @@
 /**
  * VirtualizedGrid — React adapter for the imperative grid engine.
- * Scroll and cell DOM are handled outside the React render path.
+ * Each mount owns an isolated engine instance (DOM, listeners, timers).
  */
 
-import { useEffect, useLayoutEffect, useRef } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef } from 'react'
 import './grid.css'
 import { createGrid, type GridEngine } from './engine'
 import type { VirtualizedGridProps } from './types'
 
 export function VirtualizedGrid({
+  gridId: gridIdProp,
   columns,
   rowCount,
   getCellContent,
@@ -24,8 +25,12 @@ export function VirtualizedGrid({
   onCellHover,
   onCellSelect,
 }: VirtualizedGridProps) {
+  const reactId = useId()
+  const gridId = gridIdProp ?? reactId
+
   const hostRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<GridEngine | null>(null)
+  const mountedRef = useRef(false)
 
   const onCellHoverRef = useRef(onCellHover)
   const onCellSelectRef = useRef(onCellSelect)
@@ -39,7 +44,10 @@ export function VirtualizedGrid({
     const host = hostRef.current
     if (!host) return
 
+    mountedRef.current = true
+
     const engine = createGrid(host, {
+      gridId,
       columns,
       rowCount,
       getCellContent,
@@ -58,15 +66,19 @@ export function VirtualizedGrid({
     engineRef.current = engine
 
     return () => {
+      mountedRef.current = false
       engine.destroy()
       engineRef.current = null
+      host.replaceChildren()
     }
-    // Mount once; option updates flow through the effect below.
+    // Mount once per gridId host; option updates flow through the effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [gridId])
 
   useEffect(() => {
+    if (!mountedRef.current) return
     engineRef.current?.updateOptions({
+      gridId,
       columns,
       rowCount,
       getCellContent,
@@ -83,6 +95,7 @@ export function VirtualizedGrid({
       onCellSelect: (cell) => onCellSelectRef.current?.(cell),
     })
   }, [
+    gridId,
     columns,
     rowCount,
     getCellContent,
@@ -97,5 +110,13 @@ export function VirtualizedGrid({
     className,
   ])
 
-  return <div ref={hostRef} style={{ width: width ?? '100%', height: height ?? '100%' }} />
+  return (
+    <div
+      ref={hostRef}
+      className="vgrid-host"
+      data-vgrid-host={gridId}
+      style={{ width: width ?? '100%', height: height ?? '100%' }}
+    />
+  )
 }
+

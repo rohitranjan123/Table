@@ -28,6 +28,7 @@ export interface PaintControllerDeps {
   isDestroyed: () => boolean
   isScrollActive: () => boolean
   onScrollActivity: () => void
+  getGridId: () => string
 }
 
 export class PaintController {
@@ -136,6 +137,7 @@ export class PaintController {
       freeze: this.deps.getFreeze(),
       rowHint: this.rowHint,
       virtualization: options.virtualization,
+      gridId: this.deps.getGridId(),
     })
     this.rowHint = rowHint
 

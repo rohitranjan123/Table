@@ -38,6 +38,7 @@ describe('computeVisibleBounds', () => {
       freeze,
       rowHint: 0,
       virtualization: true,
+      gridId: 'test-bounds',
     })
 
     const contentLeft = scrollLeft
@@ -66,6 +67,7 @@ describe('computeVisibleBounds', () => {
       freeze,
       rowHint: 0,
       virtualization: false,
+      gridId: 'test-bounds',
     })
 
     expect(bounds).toEqual({
@@ -80,7 +82,7 @@ describe('computeVisibleBounds', () => {
 describe('isVirtualizationEnabled', () => {
   it('forces windowing when the grid is too large for full paint', () => {
     resetVirtualizationWarningForTests()
-    expect(isVirtualizationEnabled(false, 100_000, 1250)).toBe(true)
+    expect(isVirtualizationEnabled(false, 100_000, 1250, 'warn-test')).toBe(true)
     expect(isVirtualizationEnabled(false, 100, 100)).toBe(false)
     expect(100 * 100).toBeLessThanOrEqual(MAX_NON_VIRTUAL_CELLS)
   })

@@ -11,6 +11,18 @@
 | DOM shell, scroll, paint scheduling | `src/grid/engine/` |
 | React adapter | `src/grid/VirtualizedGrid.tsx` |
 
+## Multiple grids in one view
+
+Each `<VirtualizedGrid>` (or `createGrid(host)`) is a **fully isolated instance**:
+
+- Own DOM subtree under its host (`data-vgrid-host` + inner `data-vgrid-id`)
+- Own scroll container, cell pools, timers, `ResizeObserver`, and pointer handlers
+- Own hover/selection state (callbacks are per instance — do not share one React state across grids unless intentional)
+
+Pass a stable `gridId` prop (or rely on React `useId()`). Unmount must call `engine.destroy()` — `VirtualizedGrid` does this in layout-effect cleanup and clears the host with `replaceChildren()`.
+
+There is **no global engine singleton**; the only module-level state is a per-`gridId` dev warning set for forced virtualization.
+
 ## Out of scope (until other layers land)
 
 - Config cascade (`theme-config`, `component-config`, `display-config`, `layout-config`)

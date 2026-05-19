@@ -23,11 +23,14 @@ function createLayer(): HTMLDivElement {
 
 export function createGridDomShell(
   container: HTMLElement,
+  gridId: string,
   className?: string,
 ): GridDomShell {
   const rootEl = document.createElement('div')
   rootEl.className = ['vgrid', className].filter(Boolean).join(' ')
   rootEl.setAttribute('role', 'grid')
+  rootEl.dataset.vgridId = gridId
+  rootEl.setAttribute('aria-label', `Data grid ${gridId}`)
 
   const scroller = document.createElement('div')
   scroller.className = 'vgrid__scroll'
