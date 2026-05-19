@@ -61,6 +61,12 @@ export class CellPool {
     }
   }
 
+  forEachActive(callback: (element: HTMLDivElement) => void): void {
+    for (const element of this.active.values()) {
+      callback(element)
+    }
+  }
+
   destroy(): void {
     this.clear()
   }

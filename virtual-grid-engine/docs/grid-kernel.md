@@ -63,6 +63,12 @@ Add new behavior as `src/grid/plugins/<feature>/` + barrel export from `plugins/
 
 Do not implement headless or config resolution inside `GridEngine`.
 
+## Scroll performance
+
+- **Row metrics cache** (`createRowMetrics`): prefix-sum row offsets so `getRowTop` / `findRowIndexAtOffset` are O(1) / O(log n) — required for function `rowHeight` at large `rowCount`.
+- **RAF coalescing** (`ScrollScheduler`): at most one paint per animation frame.
+- **Scroll-active mode**: while the scrollbar is moving, **prune is deferred** and existing cells use **position-only DOM updates** (`applyCellPosition`); a full prune runs ~120ms after scroll stops.
+
 ## Pre-merge checklist
 
 - [ ] Plugin logic has unit tests

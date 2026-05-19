@@ -8,7 +8,7 @@ import {
 } from './index'
 import './App.css'
 
-const COLUMN_COUNT = 1200
+const COLUMN_COUNT = 120000
 
 function buildDemoColumns(count: number): GridColumn[] {
   const cols: GridColumn[] = [
@@ -27,7 +27,7 @@ function buildDemoColumns(count: number): GridColumn[] {
 
 const DEMO_COLUMNS = buildDemoColumns(COLUMN_COUNT)
 
-const ROW_COUNT = 100_000
+const ROW_COUNT = 100_00000
 
 const PRESET_DEFAULT: FrozenColumns = {
   left: ['id', 'name'],

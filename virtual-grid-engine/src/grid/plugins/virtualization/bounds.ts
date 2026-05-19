@@ -2,10 +2,10 @@ import {
   findScrollableColumnAtOffset,
   type ResolvedFreeze,
 } from '../freeze-columns'
-import type { GridColumn, RowHeightSpec, VisibleBounds } from '../../types'
+import type { GridColumn, VisibleBounds } from '../../types'
 import { OVERSCAN_COLS, OVERSCAN_ROWS } from './constants'
 import { isVirtualizationEnabled } from './effective-virtualization'
-import { findRowIndexAtOffset } from './layout'
+import type { RowMetrics } from './row-metrics'
 
 export interface ComputeVisibleBoundsParams {
   scrollLeft: number
@@ -14,7 +14,7 @@ export interface ComputeVisibleBoundsParams {
   viewportHeight: number
   headerHeight: number
   rowCount: number
-  rowHeight: RowHeightSpec
+  rowMetrics: RowMetrics
   columns: GridColumn[]
   freeze: ResolvedFreeze
   rowHint: number
@@ -31,7 +31,7 @@ export function computeVisibleBounds(
     viewportHeight,
     headerHeight,
     rowCount,
-    rowHeight,
+    rowMetrics,
     columns,
     freeze,
     rowHint,
@@ -75,18 +75,8 @@ export function computeVisibleBounds(
   const bodyOffsetY = Math.max(0, scrollTop)
   const bodyOffsetYEnd = scrollTop + Math.max(0, viewportHeight - headerHeight)
 
-  let rowStart = findRowIndexAtOffset(
-    rowHeight,
-    rowCount,
-    bodyOffsetY,
-    rowHint,
-  )
-  let rowEnd = findRowIndexAtOffset(
-    rowHeight,
-    rowCount,
-    bodyOffsetYEnd,
-    rowStart,
-  )
+  let rowStart = rowMetrics.findRowIndexAtOffset(bodyOffsetY, rowHint)
+  let rowEnd = rowMetrics.findRowIndexAtOffset(bodyOffsetYEnd, rowStart)
 
   rowStart = Math.max(0, rowStart - OVERSCAN_ROWS)
   rowEnd = Math.min(rowCount - 1, rowEnd + OVERSCAN_ROWS)

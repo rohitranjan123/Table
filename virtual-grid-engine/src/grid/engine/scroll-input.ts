@@ -8,6 +8,7 @@ type WheelAxis = 'x' | 'y'
 
 export interface ScrollInputCallbacks {
   onSchedulePaint: (force?: boolean) => void
+  onScheduleInteractionPaint: () => void
   onCellHover: (cell: CellCoordinate | null) => void
   onCellSelect: (cell: CellCoordinate) => void
 }
@@ -26,6 +27,14 @@ function cellFromTarget(target: EventTarget | null): CellCoordinate | null {
   const row = Number(cell.dataset.row)
   if (Number.isNaN(col) || Number.isNaN(row)) return null
   return [col, row]
+}
+
+function sameCell(
+  a: CellCoordinate | null,
+  b: CellCoordinate | null,
+): boolean {
+  if (a === null || b === null) return a === b
+  return a[0] === b[0] && a[1] === b[1]
 }
 
 export function attachScrollInput(
@@ -77,29 +86,22 @@ export function attachScrollInput(
     event.preventDefault()
     if (deltaY !== 0) scroller.scrollTop = nextTop
     if (deltaX !== 0) scroller.scrollLeft = nextLeft
-    callbacks.onSchedulePaint()
+    callbacks.onSchedulePaint(false)
   }
 
-  const onViewportPointerOver = (event: PointerEvent) => {
-    const coord = cellFromTarget(event.target)
-    if (!coord) return
-    const hover = getHoverCell()
-    if (hover?.[0] === coord[0] && hover[1] === coord[1]) return
+  const setHover = (coord: CellCoordinate | null) => {
+    if (sameCell(getHoverCell(), coord)) return
     setHoverCell(coord)
     callbacks.onCellHover(coord)
-    callbacks.onSchedulePaint(true)
+    callbacks.onScheduleInteractionPaint()
   }
 
-  const onViewportPointerOut = (event: PointerEvent) => {
-    const related = event.relatedTarget
-    if (related instanceof Node && shell.viewport.contains(related)) {
-      const nested = cellFromTarget(related)
-      if (nested) return
-    }
-    if (getHoverCell() === null) return
-    setHoverCell(null)
-    callbacks.onCellHover(null)
-    callbacks.onSchedulePaint(true)
+  const onViewportPointerMove = (event: PointerEvent) => {
+    setHover(cellFromTarget(event.target))
+  }
+
+  const onViewportPointerLeave = () => {
+    setHover(null)
   }
 
   const onViewportClick = (event: MouseEvent) => {
@@ -115,16 +117,16 @@ export function attachScrollInput(
     passive: false,
     capture: true,
   })
-  shell.viewport.addEventListener('pointerover', onViewportPointerOver)
-  shell.viewport.addEventListener('pointerout', onViewportPointerOut)
+  shell.viewport.addEventListener('pointermove', onViewportPointerMove)
+  shell.viewport.addEventListener('pointerleave', onViewportPointerLeave)
   shell.viewport.addEventListener('click', onViewportClick)
 
   return {
     destroy() {
       shell.scroller.removeEventListener('scroll', onScrollerScroll)
       shell.root.removeEventListener('wheel', onRootWheel, { capture: true })
-      shell.viewport.removeEventListener('pointerover', onViewportPointerOver)
-      shell.viewport.removeEventListener('pointerout', onViewportPointerOut)
+      shell.viewport.removeEventListener('pointermove', onViewportPointerMove)
+      shell.viewport.removeEventListener('pointerleave', onViewportPointerLeave)
       shell.viewport.removeEventListener('click', onViewportClick)
       if (wheelAxisTimer !== null) {
         window.clearTimeout(wheelAxisTimer)

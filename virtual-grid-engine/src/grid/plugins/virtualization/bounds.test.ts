@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { resolveFrozenColumns } from '../freeze-columns'
 import {
   computeVisibleBounds,
+  createRowMetrics,
   isVirtualizationEnabled,
   MAX_NON_VIRTUAL_CELLS,
   OVERSCAN_COLS,
@@ -32,7 +33,7 @@ describe('computeVisibleBounds', () => {
       viewportHeight: 480,
       headerHeight: 36,
       rowCount: 100,
-      rowHeight: 28,
+      rowMetrics: createRowMetrics(100, 28),
       columns,
       freeze,
       rowHint: 0,
@@ -60,7 +61,7 @@ describe('computeVisibleBounds', () => {
       viewportHeight: 200,
       headerHeight: 36,
       rowCount: 50,
-      rowHeight: 28,
+      rowMetrics: createRowMetrics(50, 28),
       columns,
       freeze,
       rowHint: 0,

@@ -20,6 +20,35 @@ export function createCellElement(): HTMLDivElement {
   return el
 }
 
+/** Update position/size only — used during scroll when cell content is unchanged. */
+/** Toggle hover/selection/zebra classes without touching layout or content. */
+export function applyCellInteraction(
+  element: HTMLDivElement,
+  state: Pick<CellDomState, 'isAlt' | 'isHover' | 'isSelected'>,
+): void {
+  element.classList.toggle('vgrid__cell--alt', state.isAlt)
+  element.classList.toggle('vgrid__cell--hover', state.isHover)
+  element.classList.toggle('vgrid__cell--selected', state.isSelected)
+}
+
+export function applyCellPosition(
+  element: HTMLDivElement,
+  layout: {
+    left: number
+    top: number
+    width: number
+    height: number
+    zIndex: number
+  },
+): void {
+  element.style.left = `${layout.left}px`
+  element.style.top = `${layout.top}px`
+  element.style.width = `${layout.width}px`
+  element.style.height = `${layout.height}px`
+  element.style.zIndex = String(layout.zIndex)
+  element.style.display = ''
+}
+
 export function applyCellDom(
   el: HTMLDivElement,
   state: CellDomState,

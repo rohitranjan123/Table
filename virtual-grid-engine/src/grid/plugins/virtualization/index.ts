@@ -15,3 +15,4 @@ export {
   resolveRowHeight,
   sumColumnWidths,
 } from './layout'
+export { createRowMetrics, type RowMetrics } from './row-metrics'

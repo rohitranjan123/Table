@@ -1,7 +1,9 @@
 import {
   buildColumnLefts,
+  createRowMetrics,
   resolveFrozenColumns,
   type ResolvedFreeze,
+  type RowMetrics,
 } from '../plugins'
 import type { CellCoordinate } from '../types'
 import { CellPool } from './CellPool'
@@ -36,12 +38,15 @@ class GridEngineImpl implements GridEngine {
   private scrollInput: ReturnType<typeof attachScrollInput> | null = null
 
   private columnLefts: number[] = []
+  private rowMetrics: RowMetrics = createRowMetrics(0, 28)
   private freeze: ResolvedFreeze = resolveFrozenColumns([])
   private viewportWidth = 0
   private viewportHeight = 0
   private hoverCell: CellCoordinate | null = null
   private selectedCell: CellCoordinate | null = null
 
+  private scrollActive = false
+  private scrollIdleTimer: number | null = null
   private resizeObserver: ResizeObserver | null = null
   private layoutAnimationTimer: number | null = null
   private animatingCols = false
@@ -51,6 +56,7 @@ class GridEngineImpl implements GridEngine {
     this.options = options
     this.shell = createGridDomShell(container, options.className)
     this.freeze = resolveFrozenColumns(options.columns, options.frozenColumns)
+    this.rowMetrics = createRowMetrics(options.rowCount, options.rowHeight)
 
     this.renderer = new GridRenderer({
       headerScroll: new CellPool(this.shell.layerHeaderScroll),
@@ -68,7 +74,7 @@ class GridEngineImpl implements GridEngine {
         columns: this.options.columns,
         columnLefts: this.columnLefts,
         rowCount: this.options.rowCount,
-        rowHeight: this.options.rowHeight,
+        rowMetrics: this.rowMetrics,
         headerHeight: this.options.headerHeight,
         freeze: this.freeze,
         scrollLeft: this.shell.scroller.scrollLeft,
@@ -78,6 +84,7 @@ class GridEngineImpl implements GridEngine {
         getCellContent: this.options.getCellContent,
         virtualization: this.virtualization,
       }),
+      getRowMetrics: () => this.rowMetrics,
       getFreeze: () => this.freeze,
       getColumnLefts: () => this.columnLefts,
       getViewportSize: () => ({
@@ -85,6 +92,8 @@ class GridEngineImpl implements GridEngine {
         height: this.viewportHeight,
       }),
       isDestroyed: () => this.destroyed,
+      isScrollActive: () => this.scrollActive,
+      onScrollActivity: () => this.markScrollActive(),
     })
 
     this.columnLefts = buildColumnLefts(options.columns)
@@ -120,6 +129,12 @@ class GridEngineImpl implements GridEngine {
     if (partial.columns !== undefined) layoutAnimation = 'both'
 
     this.options = { ...this.options, ...partial }
+    if (partial.rowCount !== undefined || partial.rowHeight !== undefined) {
+      this.rowMetrics = createRowMetrics(
+        this.options.rowCount,
+        this.options.rowHeight,
+      )
+    }
     if (
       partial.columns ||
       partial.frozenColumns ||
@@ -167,6 +182,10 @@ class GridEngineImpl implements GridEngine {
     this.resizeObserver?.disconnect()
     this.scrollInput?.destroy()
     this.scrollInput = null
+    if (this.scrollIdleTimer !== null) {
+      window.clearTimeout(this.scrollIdleTimer)
+      this.scrollIdleTimer = null
+    }
     if (this.layoutAnimationTimer !== null) {
       window.clearTimeout(this.layoutAnimationTimer)
       this.layoutAnimationTimer = null
@@ -209,16 +228,34 @@ class GridEngineImpl implements GridEngine {
       shell: this.shell,
       options: this.options,
       freeze: this.freeze,
+      rowMetrics: this.rowMetrics,
       viewportWidth: this.viewportWidth,
       viewportHeight: this.viewportHeight,
     })
+  }
+
+  private markScrollActive(): void {
+    this.scrollActive = true
+    if (this.scrollIdleTimer !== null) {
+      window.clearTimeout(this.scrollIdleTimer)
+    }
+    this.scrollIdleTimer = window.setTimeout(() => {
+      this.scrollActive = false
+      this.scrollIdleTimer = null
+      this.paintController.schedulePaint(true)
+    }, 120)
   }
 
   private bindInput(): void {
     this.scrollInput = attachScrollInput(
       this.shell,
       {
-        onSchedulePaint: (force) => this.paintController.schedulePaint(force),
+        onSchedulePaint: (force) => {
+          if (!force) this.markScrollActive()
+          this.paintController.schedulePaint(force)
+        },
+        onScheduleInteractionPaint: () =>
+          this.paintController.scheduleInteractionPaint(),
         onCellHover: (cell) => this.options.onCellHover?.(cell),
         onCellSelect: (cell) => this.options.onCellSelect?.(cell),
       },

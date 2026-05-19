@@ -1,6 +1,6 @@
 /** @internal Spacer, layer geometry, scrollbar gutter, and ARIA layout sync. */
 
-import { computeTotalBodyHeight, type ResolvedFreeze } from '../plugins'
+import type { ResolvedFreeze, RowMetrics } from '../plugins'
 import type { GridDomShell } from './dom-shell'
 import type { GridEngineOptions } from './types'
 
@@ -8,6 +8,7 @@ export interface LayoutSyncParams {
   shell: GridDomShell
   options: GridEngineOptions
   freeze: ResolvedFreeze
+  rowMetrics: RowMetrics
   viewportWidth: number
   viewportHeight: number
 }
@@ -92,10 +93,11 @@ export function syncScrollbarGutter(shell: GridDomShell): void {
 }
 
 export function syncSpacerAndLayers(params: LayoutSyncParams): void {
-  const { shell, options, freeze, viewportWidth, viewportHeight } = params
-  const { rowCount, rowHeight, headerHeight } = options
+  const { shell, options, freeze, rowMetrics, viewportWidth, viewportHeight } =
+    params
+  const { headerHeight } = options
   const totalWidth = freeze.layoutWidth
-  const totalBodyHeight = computeTotalBodyHeight(rowCount, rowHeight)
+  const totalBodyHeight = rowMetrics.getTotalBodyHeight()
   const totalHeight = headerHeight + totalBodyHeight
   const { leftWidth, rightWidth } = freeze
 
