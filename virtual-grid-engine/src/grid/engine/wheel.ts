@@ -1,3 +1,5 @@
+/** @internal Trackpad wheel delta normalization. */
+
 type WheelAxis = 'x' | 'y'
 
 export function resolveWheelDeltas(

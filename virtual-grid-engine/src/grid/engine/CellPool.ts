@@ -1,3 +1,5 @@
+/** @internal Cell DOM pool for a single render layer. */
+
 import { createCellElement, hideCellElement } from './domCell'
 
 /** Cap recycled nodes per layer so fast scroll cannot retain unbounded hidden DOM. */

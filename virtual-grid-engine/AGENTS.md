@@ -15,6 +15,8 @@ Before implementing or reviewing code, use the **virtual-grid-engine** skill and
 
 Persistent rules live in [.cursor/rules/](.cursor/rules/).
 
+**Grid kernel (implemented today):** [docs/grid-kernel.md](docs/grid-kernel.md) — scope, plugin meaning, parallel dev lanes, layer status.
+
 ## Quick constraints
 
 - Eight layers with strict import boundaries; `engine/` is the sole integrator.

@@ -1,3 +1,5 @@
+/** @packageDocumentation Grid kernel — imperative engine + React adapter. */
+
 export { VirtualizedGrid } from './VirtualizedGrid'
 export { createGrid } from './engine'
 export type { GridEngine, GridEngineOptions, GridScrollPosition } from './engine'

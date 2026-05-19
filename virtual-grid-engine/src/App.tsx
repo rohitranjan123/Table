@@ -5,7 +5,7 @@ import {
   type FrozenColumns,
   type GridCell,
   type GridColumn,
-} from './grid'
+} from './index'
 import './App.css'
 
 const COLUMN_COUNT = 1200

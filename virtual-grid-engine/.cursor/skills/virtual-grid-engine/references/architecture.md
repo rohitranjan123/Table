@@ -323,20 +323,24 @@ Works like `useState` — reads and writes engine state from outside the table.
 
 ## Performance Requirements
 
-### Required
-- Row virtualization (TanStack Virtual)
-- Column virtualization
-- Memoized rendering (`React.memo`)
+### Grid kernel (`src/grid`) — implemented today
+
+The imperative grid kernel uses **custom row/column windowing** (see `src/grid/plugins/virtualization/`), DOM cell pooling, and `requestAnimationFrame` scroll batching. This path is required for frozen-column layering and direct DOM paint; it is documented in [docs/grid-kernel.md](../../../docs/grid-kernel.md).
+
+### Full table engine (target) — required
+
+- Row and column virtualization (windowing before paint)
+- Memoized rendering (`React.memo`) in React surfaces (toolbar, chrome)
 - Batched state updates
 - Stable references (`useMemo`, `useCallback`)
-- Fine-grained subscriptions (`useSyncExternalStore`)
-- Lazy calculations
-- Incremental rendering
+- Fine-grained subscriptions (`useSyncExternalStore`) in headless hooks
+- Lazy calculations and incremental rendering in the data pipeline
 
-### Recommended Stack
-- **State**: Zustand
-- **Virtualization**: TanStack Virtual
-- **Memoization**: `React.memo`, `useMemo`, `useCallback`
+### Recommended stack (non-kernel layers)
+
+- **State**: Zustand (headless / tracking — not inside `src/grid`)
+- **Virtualization**: Custom windowing in `src/grid`; TanStack Virtual may be used for optional React-only surfaces (e.g. simple lists) but is **not** the kernel grid implementation
+- **Memoization**: `React.memo`, `useMemo`, `useCallback` in view/components
 
 ---
 

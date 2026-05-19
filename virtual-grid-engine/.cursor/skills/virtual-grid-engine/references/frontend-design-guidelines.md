@@ -721,7 +721,7 @@ Avoid:
 - Memoize with `useMemo` and `useCallback` only when profiling confirms a re-render problem. Do not premature-optimize.
 - Use `React.memo` on list item components rendered in large lists.
 - Lazy load route-level components with `React.lazy` and `Suspense`.
-- Virtualize lists with more than ~50 rows using TanStack Virtual.
+- Data grids use the imperative grid kernel (`VirtualizedGrid` / `createGrid`) — not shadcn `Table` or native `<table>`. Optional TanStack Virtual for non-grid lists only.
 - Avoid inline function definitions in JSX prop positions for frequently re-rendered components.
 - Image optimization: use correct formats (WebP/AVIF), set explicit `width` and `height`, use `loading="lazy"` for below-fold images.
 

@@ -577,7 +577,7 @@ Raw Data
    ↓  Sorting            (useSorting state applied)
    ↓  Grouping           (useGrouping state applied)
    ↓  Pagination         (usePagination state applied)
-   ↓  Virtualization     (TanStack Virtual window calculation)
+   ↓  Virtualization     (grid kernel windowing in `src/grid/plugins/virtualization/`)
    ↓  Renderer           (pure UI output)
 ```
 

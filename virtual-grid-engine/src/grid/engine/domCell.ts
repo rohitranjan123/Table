@@ -1,3 +1,5 @@
+/** @internal Cell DOM creation and class/style application. */
+
 import type { GridCell } from '../types'
 
 export interface CellDomState {

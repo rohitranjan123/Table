@@ -32,6 +32,8 @@ Mirror folder structure to layers: `theme/`, `component/`, `display/`, `layout/`
 
 ## Performance (required)
 
-Row + column virtualization (TanStack Virtual), `React.memo`, stable refs, batched updates, fine-grained subscriptions.
+- **Grid kernel (`src/grid`)**: custom row/column windowing + DOM pooling (see `docs/grid-kernel.md`)
+- **Full engine**: `React.memo`, stable refs, batched updates, fine-grained subscriptions (`useSyncExternalStore`)
+- TanStack Virtual is optional for non-kernel React surfaces; not used by the imperative grid kernel
 
 Full spec: `.cursor/skills/virtual-grid-engine/references/architecture.md`

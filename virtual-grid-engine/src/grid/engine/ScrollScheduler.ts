@@ -1,4 +1,4 @@
-/** Coalesces scroll/resize work into a single animation frame. */
+/** @internal Coalesces scroll/resize work into a single animation frame. */
 export class ScrollScheduler {
   private rafId: number | null = null
   private callback: (() => void) | null = null
