@@ -1,0 +1,40 @@
+---
+description: Public npm library API, exports, naming, testing, and release standards
+globs: "{src/**/*,package.json,tsconfig*.json,eslint.config.*}"
+alwaysApply: false
+---
+
+# NPM Library Standards
+
+Every export is a **forever promise**. Consumer-first, explicit, minimal surface, semver-safe.
+
+## Public API
+
+- Export only from `src/index.ts`; mark internals `/** @internal */`
+- Named exports only; explicit `exports` map in `package.json`
+- Options-object pattern for 3+ parameters; explicit return types on public functions
+- Typed errors (`EngineConfigError`, etc.) — not generic `Error`
+- `peerDependencies` for React — never bundle React in `dependencies`
+- `sideEffects: false` unless documented exceptions
+
+## Naming & files
+
+- Files: `kebab-case.ts`; tests: `*.test.ts`, `*.test-d.ts`
+- No abbreviations (`cb`, `fn`, `err`, `res`, `ctx`, `idx`)
+- Booleans: `is` / `has` / `can` / `should` prefix
+- Interfaces: PascalCase, no `I` prefix; hooks: `use` prefix
+
+## Code quality
+
+- No `console.log` in library source (init-time config warnings are the documented exception)
+- No `any`; `unknown` at boundaries with narrowing
+- Pure render-pipeline stages — no mutating stage inputs
+- JSDoc required on public exports: `@param`, `@returns`, `@throws`, `@example`, `@since`
+
+## Tests & release
+
+- Unit per layer; integration for plugin lifecycle, schema cascade, render pipeline, consumer simulation
+- Type tests (`tsd` / `expect-type`) for public API
+- CI: lint (zero warnings), typecheck, test, build, size budget
+
+Full spec: `.cursor/skills/virtual-grid-engine/references/npm-library-standards.md`

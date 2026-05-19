@@ -1,0 +1,25 @@
+---
+description: Core mandate for virtual-grid-engine — read standards before coding
+alwaysApply: true
+---
+
+# Virtual Grid Engine — Core Mandate
+
+This repo implements a **config-driven, plugin-first table engine** (public npm library).
+
+## Before any change
+
+1. Apply skill **virtual-grid-engine** (`.cursor/skills/virtual-grid-engine/SKILL.md`).
+2. Read the relevant reference under `.cursor/skills/virtual-grid-engine/references/` — do not guess architecture.
+
+## Absolute rules
+
+- **Consumers configure; they never modify engine internals.**
+- **8 layers** with strict import boundaries — no cross-layer violations, no circular imports.
+- **Config cascade order is fixed** — do not reorder schema resolution or render pipeline stages.
+- **Components are pure UI** — state/handlers via props only; hooks wired in the HOC only.
+- **`src/index.ts` only** defines public exports; `utils/` and `constants/` stay `@internal`.
+- **Table UI** uses the engine’s div-based virtualized grid only — not HTML `<table>` or alternate grid libs.
+- **TypeScript**: no `any`; explicit types on public boundaries.
+
+When implementation conflicts with a reference doc, **fix the code to match the standard** unless the user explicitly changes the standard.

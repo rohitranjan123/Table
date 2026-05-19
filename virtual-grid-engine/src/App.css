@@ -1,0 +1,112 @@
+.grid-demo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 24px 16px 48px;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+  overscroll-behavior: contain;
+}
+
+.grid-demo__header {
+  width: 100%;
+  max-width: 900px;
+}
+
+.grid-demo__header h1 {
+  font-size: 28px;
+  margin: 0 0 8px;
+  letter-spacing: -0.5px;
+}
+
+.grid-demo__header p {
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.grid-demo__status {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--accent);
+  margin-top: 8px !important;
+}
+
+.grid-demo__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, transparent);
+}
+
+.grid-demo__toolbar-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.grid-demo__toolbar-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: color-mix(in srgb, currentColor 55%, transparent);
+  margin-right: 4px;
+}
+
+.grid-demo__btn {
+  font: inherit;
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.grid-demo__btn:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.grid-demo__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.grid-demo__btn--ghost {
+  background: transparent;
+  color: inherit;
+  border-color: color-mix(in srgb, currentColor 22%, transparent);
+}
+
+.grid-demo__btn--chip {
+  padding: 4px 10px;
+  font-size: 12px;
+  background: transparent;
+  color: inherit;
+  border-color: color-mix(in srgb, currentColor 18%, transparent);
+}
+
+.grid-demo__btn--chip-active {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 40%, transparent);
+}
+
+.grid-demo__chip-side {
+  display: inline-block;
+  min-width: 1ch;
+  margin-left: 4px;
+  font-weight: 700;
+  opacity: 0.7;
+}

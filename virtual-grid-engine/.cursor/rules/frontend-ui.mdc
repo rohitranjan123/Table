@@ -1,0 +1,31 @@
+---
+description: Frontend UI, table consumer rules, accessibility, and design system
+globs: "**/*.{tsx,css}"
+alwaysApply: false
+---
+
+# Frontend & Table Consumer UI
+
+Stack: React + TypeScript, TailwindCSS, shadcn/ui, Lucide. Feature-based `src/components/` when adding app UI.
+
+## Table engine (only grid implementation)
+
+- Configure via four configs + props — **never** fork engine internals
+- Required props in production UI: custom `loadingComponent`, `emptyComponent`, `errorComponent`
+- State: `tableController` or `useTableEngine` — do not duplicate sort/filter/selection in Zustand
+- Div-based grid only; engine sets ARIA roles — do not add conflicting `role="grid"` in overrides
+- Column width/alignment via `ColumnDef` / `tableStyle` — not inline on cell divs
+
+## UI quality
+
+- Clarity over noise; WCAG AA contrast; visible focus rings
+- CSS variables for theme colors — no hardcoded hex in components
+- shadcn primitives in `components/ui/` — extend via wrappers, do not edit generated ui files
+- Skeletons for loading; designed empty/error states; no raw error objects to users
+- Lucide only; icon-only controls need `aria-label` + Tooltip
+
+## Avoid
+
+Purple-gradient defaults, glassmorphism without purpose, `any`, spinners for content areas, hiding focus outlines, shadcn `Table` for data grids.
+
+Full spec: `.cursor/skills/virtual-grid-engine/references/frontend-design-guidelines.md`

@@ -1,0 +1,37 @@
+---
+description: 8-layer architecture, import boundaries, and config cascade
+globs: src/**/*
+alwaysApply: false
+---
+
+# Architecture — Layers & Config
+
+Mirror folder structure to layers: `theme/`, `component/`, `display/`, `layout/`, `registry/`, `headless/`, `view/`, `engine/`, `types/`, `utils/`, `constants/`.
+
+## Import boundaries
+
+- `headless/` → never `view/` or `engine/`
+- `view/layout/` → sealed; not exported; plugins use plugin interface only
+- `engine/` → only layer that integrates all others
+- Cross-layer imports via each layer’s `index.ts` — no deep cross-layer paths
+
+## Config files (consumer-facing)
+
+| File | Role |
+|------|------|
+| `theme-config` | Tailwind tokens; deep-merge partials; frozen after init |
+| `component-config` | `overrideComponent` **xor** `extendVariant`; scoped `style` |
+| `display-config` | boolean flags only; unknown keys warn at init |
+| `layout-config` | 12 zones + `order` ascending; empty zones collapse |
+
+## Headless & tracking
+
+- Hooks: `useReducer` + `useSyncExternalStore`; self-register on mount, cleanup on unmount
+- Global Tracking Register: engine-owned singleton — not exported
+- `useTableEngine`: consumer-only, outside HOC/headless hooks
+
+## Performance (required)
+
+Row + column virtualization (TanStack Virtual), `React.memo`, stable refs, batched updates, fine-grained subscriptions.
+
+Full spec: `.cursor/skills/virtual-grid-engine/references/architecture.md`

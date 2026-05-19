@@ -1,0 +1,215 @@
+.vgrid {
+  position: relative;
+  overflow: hidden;
+  font: 13px/1.2 system-ui, sans-serif;
+  color: #6b6375;
+  background: #fff;
+  --vgrid-transition-duration: 240ms;
+  --vgrid-transition-ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Layout-only motion (enabled briefly on freeze / structure changes, not while scrolling). */
+.vgrid--animate-cols .vgrid__cell {
+  transition:
+    left var(--vgrid-transition-duration) var(--vgrid-transition-ease),
+    width var(--vgrid-transition-duration) var(--vgrid-transition-ease);
+}
+
+.vgrid--animate-rows .vgrid__cell {
+  transition:
+    top var(--vgrid-transition-duration) var(--vgrid-transition-ease),
+    height var(--vgrid-transition-duration) var(--vgrid-transition-ease);
+}
+
+.vgrid--animate-cols .vgrid__freeze-divider--left,
+.vgrid--animate-cols .vgrid__freeze-divider--right {
+  transition: left var(--vgrid-transition-duration) var(--vgrid-transition-ease);
+}
+
+.vgrid--animate-cols .vgrid__layer {
+  transition:
+    left var(--vgrid-transition-duration) var(--vgrid-transition-ease),
+    width var(--vgrid-transition-duration) var(--vgrid-transition-ease);
+}
+
+.vgrid__scroll {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #b8b6c0 #f0eff4;
+}
+
+.vgrid__scroll::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+.vgrid__scroll::-webkit-scrollbar-track {
+  background: #f0eff4;
+}
+
+.vgrid__scroll::-webkit-scrollbar-thumb {
+  background: #b8b6c0;
+  border-radius: 6px;
+  border: 2px solid #f0eff4;
+}
+
+.vgrid__scroll::-webkit-scrollbar-thumb:hover {
+  background: #9a97a3;
+}
+
+.vgrid__spacer {
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.vgrid__viewport {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: var(--vgrid-scrollbar-w, 0px);
+  bottom: var(--vgrid-scrollbar-h, 0px);
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.vgrid__layer {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.vgrid__cell {
+  position: absolute;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  box-shadow: inset 0 0 0 1px #e5e4e7;
+  pointer-events: auto;
+  background: #fff;
+  cursor: default;
+}
+
+.vgrid__cell--frozen-edge-left {
+  box-shadow:
+    inset 0 0 0 1px #e5e4e7,
+    inset -1px 0 0 #d4d3d8;
+}
+
+.vgrid__cell--frozen-edge-right {
+  box-shadow:
+    inset 0 0 0 1px #e5e4e7,
+    inset 1px 0 0 #d4d3d8;
+}
+
+.vgrid__freeze-divider {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 100%;
+  background: #d4d3d8;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.vgrid__freeze-divider--left {
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.08);
+}
+
+.vgrid__freeze-divider--right {
+  box-shadow: -2px 0 6px rgba(0, 0, 0, 0.08);
+}
+
+.vgrid__cell--header {
+  font-weight: 600;
+  color: #08060d;
+  background: #f4f3ec;
+}
+
+.vgrid__cell--alt {
+  background: #fafaf9;
+}
+
+.vgrid__cell--hover {
+  background: rgba(170, 59, 255, 0.08);
+}
+
+.vgrid__cell--selected {
+  background: rgba(170, 59, 255, 0.18);
+}
+
+.vgrid__cell--number {
+  justify-content: flex-end;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-color-scheme: dark) {
+  .vgrid {
+    color: #9ca3af;
+    background: #16171d;
+  }
+
+  .vgrid__cell {
+    box-shadow: inset 0 0 0 1px #2e303a;
+    background: #16171d;
+  }
+
+  .vgrid__cell--frozen-edge-left {
+    box-shadow:
+      inset 0 0 0 1px #2e303a,
+      inset -1px 0 0 #3d3f4a;
+  }
+
+  .vgrid__cell--frozen-edge-right {
+    box-shadow:
+      inset 0 0 0 1px #2e303a,
+      inset 1px 0 0 #3d3f4a;
+  }
+
+  .vgrid__freeze-divider {
+    background: #3d3f4a;
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.35);
+  }
+
+  .vgrid__cell--header {
+    color: #f3f4f6;
+    background: #1f2028;
+  }
+
+  .vgrid__cell--alt {
+    background: #1a1b22;
+  }
+
+  .vgrid__cell--hover {
+    background: rgba(192, 132, 252, 0.12);
+  }
+
+  .vgrid__cell--selected {
+    background: rgba(192, 132, 252, 0.22);
+  }
+
+  .vgrid__scroll {
+    scrollbar-color: #4b4e5c #1f2028;
+  }
+
+  .vgrid__scroll::-webkit-scrollbar-track {
+    background: #1f2028;
+  }
+
+  .vgrid__scroll::-webkit-scrollbar-thumb {
+    background: #4b4e5c;
+    border-color: #1f2028;
+  }
+
+  .vgrid__scroll::-webkit-scrollbar-thumb:hover {
+    background: #6b6f7e;
+  }
+}
