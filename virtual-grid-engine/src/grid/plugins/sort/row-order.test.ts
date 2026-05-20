@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import type { CellCoordinate, GridCell, GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
+import type { CellCoordinate, GridCell } from '../../types'
 import { computeRowOrder } from './row-order'
 import type { SortState } from './types'
 
-const columns: GridColumn[] = [
-  { dataIndex: 'id', title: 'ID', width: 72 },
-  { dataIndex: 'name', title: 'Name', width: 120 },
+const columns: ResolvedColumn[] = [
+  { field: 'id', title: 'ID', width: 72 },
+  { field: 'name', title: 'Name', width: 120 },
 ]
 
 function makeGetCellContent(

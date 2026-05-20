@@ -1,13 +1,28 @@
 /**
  * VirtualizedGrid — React adapter for the imperative grid engine.
- * Each mount owns an isolated engine instance (DOM, listeners, timers).
  */
 
-import { useEffect, useId, useLayoutEffect, useRef, type CSSProperties } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 import { toCssSize } from './grid-size'
 import './grid.css'
 import { createGrid, type GridEngine } from './engine'
-import type { GridSize, VirtualizedGridProps } from './types'
+import type { GridModuleId } from './modules/grid-modules'
+import {
+  resolveGridInput,
+  resolveModules,
+  toEngineOptions,
+} from './resolve-grid-options'
+import { colDefsToSortState } from './col-def'
+import type { GridSize, SortState, VirtualizedGridProps } from './types'
 
 function hostSizeStyle(
   width: GridSize | undefined,
@@ -18,14 +33,18 @@ function hostSizeStyle(
     height: toCssSize(height),
     minWidth: 0,
     minHeight: 0,
+    position: 'relative',
   }
 }
 
-export function VirtualizedGrid({
+export function VirtualizedGrid<T extends object>({
   gridId: gridIdProp,
-  columns,
-  rowCount,
-  getCellContent,
+  columnDefs,
+  defaultColDef,
+  rowData,
+  loading = false,
+  enableCellSpan,
+  modules: modulesProp,
   headerHeight,
   headerTextOverflow,
   cellTextOverflow,
@@ -40,35 +59,94 @@ export function VirtualizedGrid({
   onCellHover,
   onCellSelect,
   rowSpanRevision,
-  sortState,
-  onSortStateChange,
-}: VirtualizedGridProps) {
+  sortState: sortStateProp,
+  onSortStateChange: onSortStateChangeProp,
+}: VirtualizedGridProps<T>) {
   const reactId = useId()
   const gridId = gridIdProp ?? reactId
 
-  const hostRef = useRef<HTMLDivElement>(null)
+  const [internalSort, setInternalSort] = useState<SortState[]>(() =>
+    colDefsToSortState(columnDefs),
+  )
+  const sortState = sortStateProp ?? internalSort
+  const onSortStateChange = onSortStateChangeProp ?? setInternalSort
+
+  const modules = useMemo(
+    () => resolveModules(modulesProp, enableCellSpan),
+    [modulesProp, enableCellSpan],
+  )
+
+  const wrapperRef = useRef<HTMLDivElement>(null)
+  /** Imperative-only mount — React must not render children into this node. */
+  const engineMountRef = useRef<HTMLDivElement>(null)
   const engineRef = useRef<GridEngine | null>(null)
   const mountedRef = useRef(false)
+  const attachedRef = useRef<ReadonlySet<GridModuleId>>(
+    new Set(modules.map((m) => m.id)),
+  )
 
   const onCellHoverRef = useRef(onCellHover)
   const onCellSelectRef = useRef(onCellSelect)
+  const onSortStateChangeRef = useRef(onSortStateChange)
 
   useEffect(() => {
     onCellHoverRef.current = onCellHover
     onCellSelectRef.current = onCellSelect
+    onSortStateChangeRef.current = onSortStateChange
   })
 
-  useLayoutEffect(() => {
-    const host = hostRef.current
-    if (!host) return
+  useEffect(() => {
+    attachedRef.current = new Set(modules.map((m) => m.id))
+  }, [modules])
 
-    mountedRef.current = true
-
-    const engine = createGrid(host, {
+  const buildOptions = useCallback(
+    (viewportWidth: number) => {
+      const resolved = resolveGridInput(
+        {
+          columnDefs,
+          defaultColDef,
+          rowData,
+          enableCellSpan,
+          modules,
+          frozenColumns,
+          virtualization,
+          sortState,
+        },
+        viewportWidth,
+        attachedRef.current,
+      )
+      return toEngineOptions(gridId, {
+        columnDefs,
+        defaultColDef,
+        rowData,
+        enableCellSpan,
+        modules,
+        headerHeight,
+        headerTextOverflow,
+        cellTextOverflow,
+        rowHeight,
+        frozenColumns,
+        virtualization,
+        animateTransitions,
+        transitionDurationMs,
+        width,
+        height,
+        className,
+        rowSpanRevision,
+        sortState,
+      }, resolved, {
+        onCellHover: (cell) => onCellHoverRef.current?.(cell),
+        onCellSelect: (cell) => onCellSelectRef.current?.(cell),
+        onSortStateChange: (next) => onSortStateChangeRef.current?.(next),
+      })
+    },
+    [
       gridId,
-      columns,
-      rowCount,
-      getCellContent,
+      columnDefs,
+      defaultColDef,
+      rowData,
+      enableCellSpan,
+      modules,
       headerHeight,
       headerTextOverflow,
       cellTextOverflow,
@@ -80,11 +158,25 @@ export function VirtualizedGrid({
       width,
       height,
       className,
-      onCellHover: (cell) => onCellHoverRef.current?.(cell),
-      onCellSelect: (cell) => onCellSelectRef.current?.(cell),
       rowSpanRevision,
       sortState,
-      onSortStateChange,
+    ],
+  )
+
+  useLayoutEffect(() => {
+    if (loading) return
+
+    const mount = engineMountRef.current
+    if (!mount) return
+
+    mountedRef.current = true
+    attachedRef.current = new Set(modules.map((m) => m.id))
+    const viewportWidth =
+      mount.clientWidth || wrapperRef.current?.clientWidth || 0
+
+    const engine = createGrid(mount, {
+      ...buildOptions(viewportWidth),
+      modules,
     })
     engineRef.current = engine
 
@@ -92,63 +184,37 @@ export function VirtualizedGrid({
       mountedRef.current = false
       engine.destroy()
       engineRef.current = null
-      host.replaceChildren()
     }
-    // Mount once per gridId host; option updates flow through the effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gridId])
+  }, [gridId, loading])
 
   useEffect(() => {
-    if (!mountedRef.current) return
-    engineRef.current?.updateOptions({
-      gridId,
-      columns,
-      rowCount,
-      getCellContent,
-      headerHeight,
-      headerTextOverflow,
-      cellTextOverflow,
-      rowHeight,
-      frozenColumns,
-      virtualization,
-      animateTransitions,
-      transitionDurationMs,
-      width,
-      height,
-      className,
-      onCellHover: (cell) => onCellHoverRef.current?.(cell),
-      onCellSelect: (cell) => onCellSelectRef.current?.(cell),
-      rowSpanRevision,
-      sortState,
-      onSortStateChange,
-    })
-  }, [
-    gridId,
-    columns,
-    rowCount,
-    getCellContent,
-    headerHeight,
-    headerTextOverflow,
-    cellTextOverflow,
-    rowHeight,
-    frozenColumns,
-    virtualization,
-    animateTransitions,
-    transitionDurationMs,
-    width,
-    height,
-    className,
-    rowSpanRevision,
-    sortState,
-    onSortStateChange,
-  ])
+    if (loading || !mountedRef.current || !engineRef.current) return
+    const mount = engineMountRef.current
+    const viewportWidth =
+      mount?.clientWidth ?? wrapperRef.current?.clientWidth ?? 0
+    engineRef.current.updateOptions(buildOptions(viewportWidth))
+  }, [buildOptions, modules, loading])
 
   return (
     <div
-      ref={hostRef}
+      ref={wrapperRef}
       className="vgrid-host"
       data-vgrid-host={gridId}
+      data-loading={loading ? 'true' : undefined}
       style={hostSizeStyle(width, height)}
-    />
+      aria-busy={loading}
+    >
+      <div
+        ref={engineMountRef}
+        className="vgrid-engine-mount"
+        aria-hidden={loading}
+      />
+      {loading ? (
+        <div className="vgrid-loading" role="status">
+          Loading…
+        </div>
+      ) : null}
+    </div>
   )
 }

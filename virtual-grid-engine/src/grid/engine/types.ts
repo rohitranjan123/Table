@@ -1,18 +1,19 @@
+import type { ResolvedColumn } from '../col-def'
+import type { GridModule } from '../modules/grid-modules'
+import type { GridPluginsRegistry } from './plugins-registry'
 import type {
   CellCoordinate,
   CellTextOverflow,
   FrozenColumns,
   GridCell,
-  GridColumn,
   GridSize,
   RowHeightSpec,
   SortState,
 } from '../types'
 
 export interface GridEngineOptions {
-  /** Unique instance id — scopes DOM (`data-vgrid-id`) and dev warnings. */
   gridId: string
-  columns: GridColumn[]
+  columns: ResolvedColumn[]
   rowCount: number
   getCellContent: (cell: CellCoordinate) => GridCell
   headerHeight: number
@@ -28,10 +29,15 @@ export interface GridEngineOptions {
   className?: string
   onCellHover?: (cell: CellCoordinate | null) => void
   onCellSelect?: (cell: CellCoordinate) => void
-  /** Bump to recompute row-span metadata when `getCellContent` is stable. */
   rowSpanRevision?: number
   sortState?: SortState[]
   onSortStateChange?: (sortState: SortState[]) => void
+  /** Viewport width for flex column resolution; updated on resize. */
+  viewportWidth?: number
+  columnDefs?: import('../types').ColDef[]
+  defaultColDef?: import('../types').DefaultColDef
+  /** Attached before first paint when provided at construction. */
+  modules?: readonly GridModule[]
 }
 
 export interface GridScrollPosition {
@@ -44,6 +50,6 @@ export interface GridEngine {
   updateOptions(options: Partial<GridEngineOptions>): void
   getScroll(): GridScrollPosition
   scrollTo(left: number, top: number): void
-  /** Display row → original data row (identity when unsorted). */
   getOriginalRow(displayRow: number): number
+  readonly plugins: GridPluginsRegistry
 }

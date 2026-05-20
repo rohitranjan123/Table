@@ -1,4 +1,5 @@
-import type { CellCoordinate, GridCell, GridColumn, RowHeightSpec } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
+import type { CellCoordinate, GridCell, RowHeightSpec } from '../../types'
 import { createRowMetrics, type RowMetrics } from '../virtualization/row-metrics'
 import { resolveRowHeight } from '../virtualization/layout'
 import {
@@ -15,7 +16,7 @@ import {
 import type { CellTextOverflow } from './types'
 
 export interface WrapMetricsInput {
-  columns: GridColumn[]
+  columns: ResolvedColumn[]
   rowCount: number
   rowHeight: RowHeightSpec
   headerHeight: number

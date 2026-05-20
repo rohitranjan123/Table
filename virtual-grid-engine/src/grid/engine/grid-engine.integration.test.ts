@@ -1,15 +1,35 @@
 // @vitest-environment happy-dom
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import type { CellCoordinate, GridCell, GridColumn } from '../types'
+import type { ResolvedColumn } from '../col-def'
+import { GridModules } from '../modules/grid-modules'
+import type { CellCoordinate, GridCell } from '../types'
 import { createGrid } from './GridEngine'
 import type { GridEngine } from './types'
 
-const COLUMNS: GridColumn[] = [
-  { dataIndex: 'id', title: 'ID', width: 80 },
-  { dataIndex: 'name', title: 'Name', width: 120 },
-  { dataIndex: 'value', title: 'Value', width: 100 },
-  { dataIndex: 'note', title: 'Note', width: 100 },
+const DEFAULT_MODULES = [
+  GridModules.clientSideRowModel,
+  GridModules.cellSpan,
+  GridModules.columnSort,
+  GridModules.freezeColumns,
+  GridModules.virtualization,
+] as const
+
+function mountEngine(
+  host: HTMLDivElement,
+  options: Parameters<typeof createGrid>[1],
+): GridEngine {
+  return createGrid(host, {
+    ...options,
+    modules: [...DEFAULT_MODULES],
+  })
+}
+
+const COLUMNS: ResolvedColumn[] = [
+  { field: 'id', title: 'ID', width: 80 },
+  { field: 'name', title: 'Name', width: 120 },
+  { field: 'value', title: 'Value', width: 100 },
+  { field: 'note', title: 'Note', width: 100 },
 ]
 
 function getCellContent([col, row]: CellCoordinate): GridCell {
@@ -42,7 +62,7 @@ describe('createGrid integration', () => {
   })
 
   it('mounts a grid root with ARIA grid role', async () => {
-    engine = createGrid(host, {
+    engine = mountEngine(host, {
       gridId: 'integration-test',
       columns: COLUMNS,
       rowCount: 50,
@@ -62,7 +82,7 @@ describe('createGrid integration', () => {
   })
 
   it('destroy removes the grid from the DOM', async () => {
-    engine = createGrid(host, {
+    engine = mountEngine(host, {
       gridId: 'integration-test',
       columns: COLUMNS,
       rowCount: 10,
@@ -80,7 +100,7 @@ describe('createGrid integration', () => {
   })
 
   it('virtualizes body cells to a small window', async () => {
-    engine = createGrid(host, {
+    engine = mountEngine(host, {
       gridId: 'integration-test',
       columns: COLUMNS,
       rowCount: 500,
@@ -101,7 +121,7 @@ describe('createGrid integration', () => {
   })
 
   it('scrollTo updates scroll position', async () => {
-    engine = createGrid(host, {
+    engine = mountEngine(host, {
       gridId: 'integration-test',
       columns: COLUMNS,
       rowCount: 200,
@@ -120,7 +140,7 @@ describe('createGrid integration', () => {
   })
 
   it('frozen left columns render in dedicated layers', async () => {
-    engine = createGrid(host, {
+    engine = mountEngine(host, {
       gridId: 'integration-test',
       columns: COLUMNS,
       rowCount: 20,
@@ -150,7 +170,7 @@ describe('createGrid integration', () => {
   })
 
   it('updateOptions with new frozen columns repaints frozen layer', async () => {
-    engine = createGrid(host, {
+    engine = mountEngine(host, {
       gridId: 'integration-test',
       columns: COLUMNS,
       rowCount: 10,
@@ -170,9 +190,9 @@ describe('createGrid integration', () => {
   })
 
   it('renders row-span anchor cells taller than a single row', async () => {
-    const spanColumns: GridColumn[] = [
-      { dataIndex: 'group', title: 'Group', width: 100, spanRows: true },
-      { dataIndex: 'value', title: 'Value', width: 100 },
+    const spanColumns: ResolvedColumn[] = [
+      { field: 'group', title: 'Group', width: 100, spanCell: true },
+      { field: 'value', title: 'Value', width: 100 },
     ]
     const spanGetCell = ([col, row]: CellCoordinate): GridCell => {
       if (col === 0) {
@@ -181,7 +201,7 @@ describe('createGrid integration', () => {
       return { type: 'text', data: `v${row}` }
     }
 
-    engine = createGrid(host, {
+    engine = mountEngine(host, {
       gridId: 'integration-span',
       columns: spanColumns,
       rowCount: 30,
@@ -199,5 +219,84 @@ describe('createGrid integration', () => {
     expect(spanCell).not.toBeNull()
     expect(Number.parseFloat(spanCell!.style.height)).toBeGreaterThan(28)
     expect(spanCell!.dataset.row).toBe('0')
+  })
+
+  it('paints body cells when rowCount grows with unchanged sortState (async rowData)', async () => {
+    const sortState = [{ columnId: 'name', direction: 'asc' as const }]
+    const rows: string[] = []
+
+    engine = mountEngine(host, {
+      gridId: 'integration-async-data',
+      columns: COLUMNS,
+      rowCount: 0,
+      getCellContent: ([, row]) => ({
+        type: 'text',
+        data: rows[row] ?? '',
+      }),
+      headerHeight: 32,
+      rowHeight: 28,
+      width: 400,
+      height: 300,
+      sortState,
+      onSortStateChange: () => {},
+    })
+    rows.push('alpha', 'beta', 'gamma')
+    engine.updateOptions({
+      rowCount: rows.length,
+      getCellContent: ([, row]) => ({
+        type: 'text',
+        data: rows[row] ?? '',
+      }),
+      sortState,
+    })
+    await flushPaint()
+
+    const bodyCells = host.querySelectorAll(
+      '.vgrid__layer--body .vgrid__cell[data-row]',
+    )
+    expect(bodyCells.length).toBeGreaterThan(0)
+    expect(bodyCells[0]?.textContent).toBeTruthy()
+  })
+
+  it('applies spanCell when rowData loads with unchanged sortState', async () => {
+    const sortState = [{ columnId: 'group', direction: 'asc' as const }]
+    const spanColumns: ResolvedColumn[] = [
+      { field: 'group', title: 'Group', width: 100, spanCell: true },
+      { field: 'value', title: 'Value', width: 100 },
+    ]
+    const rows: string[] = []
+
+    const getCell = ([col, row]: CellCoordinate): GridCell => {
+      if (col === 0) return { type: 'text', data: rows[row] ?? '' }
+      return { type: 'number', data: row }
+    }
+
+    engine = mountEngine(host, {
+      gridId: 'integration-async-span',
+      columns: spanColumns,
+      rowCount: 0,
+      getCellContent: getCell,
+      headerHeight: 32,
+      rowHeight: 28,
+      width: 400,
+      height: 300,
+      sortState,
+      onSortStateChange: () => {},
+    })
+
+    rows.push('A', 'A', 'A', 'B', 'B')
+    engine.updateOptions({
+      rowCount: rows.length,
+      getCellContent: getCell,
+      columns: spanColumns,
+      sortState,
+    })
+    await flushPaint()
+
+    const spanCell = host.querySelector(
+      '.vgrid__cell--row-span[data-span="1"]',
+    ) as HTMLElement | null
+    expect(spanCell).not.toBeNull()
+    expect(Number.parseFloat(spanCell!.style.height)).toBeGreaterThan(28)
   })
 })

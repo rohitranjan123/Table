@@ -1,4 +1,5 @@
-import type { CellCoordinate, GridCell, GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
+import type { CellCoordinate, GridCell } from '../../types'
 import { compareSortKeys } from './compare'
 import { extractSortKeysForColumn } from './extract-sort-keys'
 import { columnIdAtIndex } from './resolve-sort-column'
@@ -11,7 +12,7 @@ export interface ActiveSort {
 }
 
 function resolveActiveSorts(
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   sortStates: SortState[],
   rowCount: number,
   getCellContent: (cell: CellCoordinate) => GridCell,
@@ -20,7 +21,7 @@ function resolveActiveSorts(
   const active: ActiveSort[] = []
   for (const state of sortStates) {
     const columnIndex = columns.findIndex(
-      (col) => col.dataIndex === state.columnId,
+      (col) => col.field === state.columnId,
     )
     if (columnIndex === -1) continue
     const keys = extractSortKeysForColumn(
@@ -41,7 +42,7 @@ function resolveActiveSorts(
  */
 export function computeRowOrder(
   rowCount: number,
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   sortStates: SortState[],
   getCellContent: (cell: CellCoordinate) => GridCell,
   cache?: SortKeyCache,
@@ -81,7 +82,7 @@ export function sortStateForColumn(
 }
 
 export function sortDirectionForColumnIndex(
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   sortStates: SortState[] | undefined,
   columnIndex: number,
 ): SortState['direction'] | undefined {

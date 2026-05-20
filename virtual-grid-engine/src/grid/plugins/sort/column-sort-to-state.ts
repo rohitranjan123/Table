@@ -1,9 +1,9 @@
-import type { GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
 import { resolveSortColumnIndex } from './resolve-sort-column'
 import type { ColumnSort, SortState } from './types'
 
 export function columnSortsToSortState(
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   sorts: ColumnSort | ColumnSort[] | undefined,
 ): SortState[] {
   if (sorts === undefined) return []
@@ -12,7 +12,7 @@ export function columnSortsToSortState(
   for (const sort of list) {
     const columnIndex = resolveSortColumnIndex(columns, sort.column)
     if (columnIndex === -1) continue
-    const columnId = columns[columnIndex]!.dataIndex
+    const columnId = columns[columnIndex]!.field
     states.push({
       columnId,
       direction: sort.direction ?? 'asc',

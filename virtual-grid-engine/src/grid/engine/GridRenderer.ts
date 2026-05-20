@@ -18,11 +18,11 @@ import {
   isSortableColumn,
   sortDirectionForColumnIndex,
 } from '../plugins'
+import type { ResolvedColumn } from '../col-def'
 import type {
   CellCoordinate,
   CellTextOverflow,
   GridCell,
-  GridColumn,
   SortState,
   VisibleBounds,
 } from '../types'
@@ -48,7 +48,7 @@ export interface GridRendererLayers {
 }
 
 export interface GridRendererContext {
-  columns: GridColumn[]
+  columns: ResolvedColumn[]
   columnLefts: number[]
   rowCount: number
   rowMetrics: RowMetrics

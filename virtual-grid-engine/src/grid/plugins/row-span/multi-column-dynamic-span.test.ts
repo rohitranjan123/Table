@@ -2,9 +2,17 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { createRowMetrics } from '../virtualization'
-import type { CellCoordinate, GridCell, GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
+import type { CellCoordinate, GridCell } from '../../types'
 import { createGrid } from '../../engine/GridEngine'
 import type { GridEngine } from '../../engine/types'
+import { GridModules } from '../../modules/grid-modules'
+
+const SPAN_TEST_MODULES = [
+  GridModules.clientSideRowModel,
+  GridModules.cellSpan,
+  GridModules.virtualization,
+] as const
 import { collectSpanAnchorsForColumn } from './collect-span-anchors'
 import { computeRowSpans } from './compute-row-spans'
 
@@ -38,10 +46,10 @@ function getCellContent([col, row]: CellCoordinate): GridCell {
   return { type: 'text', data: `plain-${row}` }
 }
 
-const SPAN_COLUMNS: GridColumn[] = [
-  { dataIndex: 'dept', title: 'Dept', width: 80, spanRows: true },
-  { dataIndex: 'team', title: 'Team', width: 80, spanRows: true },
-  { dataIndex: 'name', title: 'Name', width: 100 },
+const SPAN_COLUMNS: ResolvedColumn[] = [
+  { field: 'dept', title: 'Dept', width: 80, spanCell: true },
+  { field: 'team', title: 'Team', width: 80, spanCell: true },
+  { field: 'name', title: 'Name', width: 100 },
 ]
 
 function expectedSegments(
@@ -141,19 +149,19 @@ describe('multi-column row span with dynamic group lengths', () => {
     expect(teamAnchors.has(2)).toBe(false)
   })
 
-  it('supports per-column spanRows callbacks with different merge rules', () => {
-    const columns: GridColumn[] = [
+  it('supports per-column spanCell callbacks with different merge rules', () => {
+    const columns: ResolvedColumn[] = [
       {
-        dataIndex: 'a',
+        field: 'a',
         title: 'A',
         width: 80,
-        spanRows: ({ rowIndex }) => rowIndex % 4 !== 0,
+        spanCell: ({ rowIndex }) => rowIndex % 4 !== 0,
       },
       {
-        dataIndex: 'b',
+        field: 'b',
         title: 'B',
         width: 80,
-        spanRows: ({ rowIndex }) => rowIndex % 7 !== 0,
+        spanCell: ({ rowIndex }) => rowIndex % 7 !== 0,
       },
     ]
 
@@ -201,6 +209,7 @@ describe('multi-column dynamic span — DOM integration', () => {
       rowHeight: 28,
       width: 400,
       height: 300,
+      modules: [...SPAN_TEST_MODULES],
     })
     await flushPaint()
 
@@ -227,6 +236,7 @@ describe('multi-column dynamic span — DOM integration', () => {
       rowHeight: 28,
       width: 400,
       height: 300,
+      modules: [...SPAN_TEST_MODULES],
     })
     await flushPaint()
 

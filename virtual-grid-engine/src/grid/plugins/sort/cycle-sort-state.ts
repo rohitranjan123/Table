@@ -1,4 +1,4 @@
-import type { GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
 import { isSortableColumn } from './is-sortable'
 import { columnIdAtIndex } from './resolve-sort-column'
 import type { SortState } from './types'
@@ -9,7 +9,7 @@ import type { SortState } from './types'
  * With `multi` (shift-click), toggles that column in the sort list.
  */
 export function cycleSortState(
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   columnIndex: number,
   current: SortState[],
   multi = false,
@@ -17,7 +17,7 @@ export function cycleSortState(
   const column = columns[columnIndex]
   if (!column || !isSortableColumn(column)) return current
 
-  const columnId = column.dataIndex
+  const columnId = column.field
   const existingIndex = current.findIndex((state) => state.columnId === columnId)
 
   if (existingIndex === -1) {
@@ -43,7 +43,7 @@ export function cycleSortState(
 }
 
 export function sortStateFromColumnIndex(
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   columnIndex: number,
 ): SortState | undefined {
   const columnId = columnIdAtIndex(columns, columnIndex)

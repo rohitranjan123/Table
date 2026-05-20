@@ -2,7 +2,8 @@ import {
   findScrollableColumnAtOffset,
   type ResolvedFreeze,
 } from '../freeze-columns'
-import type { GridColumn, VisibleBounds } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
+import type { VisibleBounds } from '../../types'
 import { OVERSCAN_COLS, OVERSCAN_ROWS } from './constants'
 import { isVirtualizationEnabled } from './effective-virtualization'
 import type { RowMetrics } from './row-metrics'
@@ -15,7 +16,7 @@ export interface ComputeVisibleBoundsParams {
   headerHeight: number
   rowCount: number
   rowMetrics: RowMetrics
-  columns: GridColumn[]
+  columns: ResolvedColumn[]
   freeze: ResolvedFreeze
   rowHint: number
   virtualization: boolean

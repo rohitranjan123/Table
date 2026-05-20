@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
 import { cycleSortState } from './cycle-sort-state'
 
-const columns: GridColumn[] = [
-  { dataIndex: 'a', title: 'A', width: 80 },
-  { dataIndex: 'b', title: 'B', width: 80, sortable: false },
+const columns: ResolvedColumn[] = [
+  { field: 'a', title: 'A', width: 80 },
+  { field: 'b', title: 'B', width: 80, sortable: false },
 ]
 
 describe('cycleSortState', () => {

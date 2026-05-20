@@ -1,13 +1,15 @@
 // @vitest-environment happy-dom
 
 import { afterEach, describe, expect, it } from 'vitest'
-import type { CellCoordinate, GridCell, GridColumn } from '../types'
+import type { ResolvedColumn } from '../col-def'
+import { GridModules } from '../modules/grid-modules'
+import type { CellCoordinate, GridCell } from '../types'
 import { createGrid } from './GridEngine'
 import type { GridEngine } from './types'
 
-function columnsFor(prefix: string, count: number): GridColumn[] {
+function columnsFor(prefix: string, count: number): ResolvedColumn[] {
   return Array.from({ length: count }, (_, index) => ({
-    dataIndex: `${prefix}-col-${index}`,
+    field: `${prefix}-col-${index}`,
     title: `${prefix} ${index}`,
     width: 80 + (index % 3) * 12,
   }))
@@ -58,6 +60,10 @@ describe('multiple grid instances', () => {
         width: 320,
         height: 200,
       })
+      engine.plugins.attach([
+        GridModules.clientSideRowModel,
+        GridModules.virtualization,
+      ])
       engines.push(engine)
     }
 

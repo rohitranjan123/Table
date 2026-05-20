@@ -1,3 +1,4 @@
+import { resolveColumnWidths } from '../col-def'
 import {
   buildColumnLefts,
   computeRowSpans,
@@ -34,7 +35,10 @@ import { attachScrollInput } from './scroll-input'
 import type { GridEngine, GridEngineOptions, GridScrollPosition } from './types'
 import { cycleSortState } from '../plugins'
 import type { SortState } from '../types'
-
+import {
+  createPluginsRegistry,
+  type GridPluginsRegistry,
+} from './plugins-registry'
 export function createGrid(
   container: HTMLElement,
   initialOptions: GridEngineOptions,
@@ -52,6 +56,8 @@ class GridEngineImpl implements GridEngine {
   private readonly paintController: PaintController
   private scrollInput: ReturnType<typeof attachScrollInput> | null = null
 
+  readonly plugins: GridPluginsRegistry
+
   private columnLefts: number[] = []
   private rowMetrics: RowMetrics = createRowMetrics(0, 28)
   private effectiveHeaderHeight = 0
@@ -61,6 +67,7 @@ class GridEngineImpl implements GridEngine {
   private viewportHeight = 0
   private hoverCell: CellCoordinate | null = null
   private selectedCell: CellCoordinate | null = null
+  private lastLayoutViewportWidth = 0
 
   private scrollActive = false
   private scrollIdleTimer: number | null = null
@@ -75,6 +82,10 @@ class GridEngineImpl implements GridEngine {
   constructor(container: HTMLElement, options: GridEngineOptions) {
     this.options = options
     this.container = container
+    this.plugins = createPluginsRegistry(() => {
+      this.rebuildSpanContext()
+    })
+
     this.shell = createGridDomShell(
       container,
       options.gridId,
@@ -84,7 +95,6 @@ class GridEngineImpl implements GridEngine {
     this.rebuildSortAccess(true)
     this.appliedSortState = this.cloneSortState(this.sortState)
     this.rebuildLayoutMetrics()
-    this.rebuildSpanContext()
 
     this.renderer = new GridRenderer({
       headerScroll: new CellPool(this.shell.layerHeaderScroll),
@@ -113,7 +123,7 @@ class GridEngineImpl implements GridEngine {
         selectedCell: this.selectedCell,
         getCellContent: this.sortAccess.getCellContent,
         sortState: this.sortState,
-        sortHeadersEnabled: this.options.onSortStateChange !== undefined,
+        sortHeadersEnabled: this.sortHeadersEnabled,
         spanContext: this.spanContext,
         virtualization: this.virtualization,
         scrollActive: this.scrollActive,
@@ -131,12 +141,18 @@ class GridEngineImpl implements GridEngine {
       getGridId: () => this.options.gridId,
     })
 
-    this.columnLefts = buildColumnLefts(options.columns)
+    this.rebuildColumnLayout(0)
     this.applyChrome()
     this.syncLayout()
     this.bindInput()
 
     this.syncResizeObserver()
+
+    if (options.modules?.length) {
+      this.plugins.attach(options.modules)
+    } else {
+      this.rebuildSpanContext()
+    }
 
     this.paintController.schedulePaint(true)
   }
@@ -176,12 +192,15 @@ class GridEngineImpl implements GridEngine {
     ) {
       layoutAnimation = layoutAnimation === 'col' ? 'both' : 'row'
     }
-    if (partial.columns !== undefined) layoutAnimation = 'both'
+    if (partial.columns !== undefined || partial.columnDefs !== undefined) {
+      layoutAnimation = 'both'
+    }
 
     const sortOnly =
       partial.sortState !== undefined &&
       !needsLayoutMetricsRebuild &&
       partial.columns === undefined &&
+      partial.columnDefs === undefined &&
       partial.frozenColumns === undefined &&
       partial.virtualization === undefined &&
       partial.width === undefined &&
@@ -194,7 +213,11 @@ class GridEngineImpl implements GridEngine {
       if (applied && sortOnly) {
         return
       }
-    } else if (needsSortRebuild) {
+    }
+
+    // Rebuild when rowData/rowCount changes even if sortState is unchanged
+    // (applySortState short-circuits on equal sort and skips sort access rebuild).
+    if (needsSortRebuild) {
       this.rebuildSortAccess(
         partial.getCellContent !== undefined ||
           partial.columns !== undefined ||
@@ -205,15 +228,16 @@ class GridEngineImpl implements GridEngine {
     if (needsLayoutMetricsRebuild) {
       this.rebuildLayoutMetrics()
     }
-    if (needsSpanRebuild && partial.sortState === undefined) {
+    if (needsSpanRebuild) {
       this.rebuildSpanContext()
     }
     if (
       partial.columns ||
+      partial.columnDefs ||
       partial.frozenColumns ||
       partial.virtualization !== undefined
     ) {
-      this.columnLefts = buildColumnLefts(this.options.columns)
+      this.rebuildColumnLayout(this.viewportWidth)
       this.freeze = resolveFrozenColumns(
         this.options.columns,
         this.options.frozenColumns,
@@ -282,7 +306,15 @@ class GridEngineImpl implements GridEngine {
   }
 
   private get virtualization(): boolean {
+    if (!this.plugins.has('virtualization')) return false
     return this.options.virtualization !== false
+  }
+
+  private get sortHeadersEnabled(): boolean {
+    return (
+      this.plugins.has('column-sort') &&
+      this.options.onSortStateChange !== undefined
+    )
   }
 
   private get headerTextOverflow(): CellTextOverflow {
@@ -306,6 +338,7 @@ class GridEngineImpl implements GridEngine {
   }
 
   private get sortState(): SortState[] {
+    if (!this.plugins.has('column-sort')) return []
     return this.options.sortState ?? []
   }
 
@@ -336,12 +369,27 @@ class GridEngineImpl implements GridEngine {
   }
 
   private rebuildSpanContext(): void {
+    if (!this.plugins.has('cell-span')) {
+      this.spanContext = null
+      return
+    }
     this.spanContext = computeRowSpans({
       rowCount: this.options.rowCount,
       columns: this.options.columns,
       getCellContent: this.sortAccess.getCellContent,
       rowMetrics: this.rowMetrics,
     })
+  }
+
+  private rebuildColumnLayout(viewportWidth: number): void {
+    if (this.options.columnDefs && viewportWidth > 0) {
+      this.options.columns = resolveColumnWidths(
+        this.options.columnDefs,
+        this.options.defaultColDef,
+        viewportWidth,
+      )
+    }
+    this.columnLefts = buildColumnLefts(this.options.columns)
   }
 
   private applyChrome(): void {
@@ -366,8 +414,21 @@ class GridEngineImpl implements GridEngine {
 
   private syncLayout(): void {
     const size = measureViewport(this.shell, this.options)
+    const widthChanged =
+      size.width !== this.viewportWidth &&
+      Math.abs(size.width - this.lastLayoutViewportWidth) > 0.5
     this.viewportWidth = size.width
     this.viewportHeight = size.height
+
+    if (widthChanged && this.options.columnDefs) {
+      this.lastLayoutViewportWidth = size.width
+      this.rebuildColumnLayout(size.width)
+      this.freeze = resolveFrozenColumns(
+        this.options.columns,
+        this.options.frozenColumns,
+      )
+    }
+
     syncSpacerAndLayers({
       shell: this.shell,
       options: this.options,
@@ -428,7 +489,8 @@ class GridEngineImpl implements GridEngine {
           this.paintController.scheduleInteractionPaint(),
         onCellHover: (cell) => this.options.onCellHover?.(cell),
         onCellSelect: (cell) => this.options.onCellSelect?.(cell),
-        onHeaderClick: (columnIndex, multi) => this.handleHeaderSort(columnIndex, multi),
+        onHeaderClick: (columnIndex, multi) =>
+          this.handleHeaderSort(columnIndex, multi),
       },
       () => this.hoverCell,
       (cell) => {
@@ -441,7 +503,7 @@ class GridEngineImpl implements GridEngine {
   }
 
   private handleHeaderSort(columnIndex: number, multi: boolean): void {
-    if (!this.options.onSortStateChange) return
+    if (!this.sortHeadersEnabled || !this.options.onSortStateChange) return
     const next = cycleSortState(
       this.options.columns,
       columnIndex,
@@ -452,11 +514,6 @@ class GridEngineImpl implements GridEngine {
     this.options.onSortStateChange(next)
   }
 
-  /**
-   * Applies sort without waiting for React — updates header indicators immediately,
-   * then repaints body with content-only fast path when possible.
-   * @returns true when the update was handled (caller may skip a full repaint).
-   */
   private applySortState(next: SortState[]): boolean {
     if (sortStateEqual(this.appliedSortState, next)) {
       return true
@@ -467,11 +524,10 @@ class GridEngineImpl implements GridEngine {
     this.appliedSortState = this.cloneSortState(next)
     this.rebuildSortAccess(false)
 
-    // Header band only — never run body paint in the same turn as a header click.
     this.renderer.updateSortHeaders({
       columns: this.options.columns,
       sortState: next,
-      sortHeadersEnabled: this.options.onSortStateChange !== undefined,
+      sortHeadersEnabled: this.sortHeadersEnabled,
       headerTextOverflow: this.headerTextOverflow,
     })
 
@@ -483,7 +539,6 @@ class GridEngineImpl implements GridEngine {
     return true
   }
 
-  /** Body layers only (frozen + scroll); deferred so header paint stays isolated. */
   private queueSortBodyRepaint(): void {
     if (this.sortBodyFrame !== null) {
       cancelAnimationFrame(this.sortBodyFrame)

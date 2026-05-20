@@ -1,22 +1,22 @@
-import type { GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
 import type { CellTextOverflow } from './types'
 
 export function resolveHeaderTextOverflow(
-  column: GridColumn,
+  column: ResolvedColumn,
   defaultOverflow: CellTextOverflow = 'ellipsis',
 ): CellTextOverflow {
   return column.headerTextOverflow ?? defaultOverflow
 }
 
 export function resolveCellTextOverflow(
-  column: GridColumn,
+  column: ResolvedColumn,
   defaultOverflow: CellTextOverflow = 'ellipsis',
 ): CellTextOverflow {
   return column.cellTextOverflow ?? defaultOverflow
 }
 
 export function gridHasHeaderWrap(
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   defaultOverflow: CellTextOverflow,
 ): boolean {
   return columns.some(
@@ -25,7 +25,7 @@ export function gridHasHeaderWrap(
 }
 
 export function gridHasCellWrap(
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   defaultOverflow: CellTextOverflow,
 ): boolean {
   return columns.some(
@@ -34,7 +34,7 @@ export function gridHasCellWrap(
 }
 
 export function gridHasTextOverflowVisible(
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   headerDefault: CellTextOverflow,
   cellDefault: CellTextOverflow,
 ): boolean {

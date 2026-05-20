@@ -1,18 +1,18 @@
-import type { GridColumn } from '../../types'
-import type { SpanRowsSpec } from './types'
+import type { ResolvedColumn } from '../../col-def'
+import type { SpanCellSpec } from './types'
 
-export function hasRowSpanning(columns: GridColumn[]): boolean {
-  return columns.some((col) => col.spanRows !== undefined)
+export function hasRowSpanning(columns: ResolvedColumn[]): boolean {
+  return columns.some((col) => col.spanCell !== undefined)
 }
 
-export function getSpanningColumnIndices(columns: GridColumn[]): number[] {
+export function getSpanningColumnIndices(columns: ResolvedColumn[]): number[] {
   const indices: number[] = []
   for (let i = 0; i < columns.length; i++) {
-    if (columns[i].spanRows !== undefined) indices.push(i)
+    if (columns[i].spanCell !== undefined) indices.push(i)
   }
   return indices
 }
 
-export function isSpanRowsSpec(value: unknown): value is SpanRowsSpec {
+export function isSpanCellSpec(value: unknown): value is SpanCellSpec {
   return typeof value === 'boolean' || typeof value === 'function'
 }

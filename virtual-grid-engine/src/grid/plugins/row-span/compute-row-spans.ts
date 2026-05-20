@@ -1,10 +1,11 @@
-import type { CellCoordinate, GridCell, GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
+import type { CellCoordinate, GridCell } from '../../types'
 import { getSpanningColumnIndices, hasRowSpanning } from './resolve-row-span'
 import type {
   ComputeRowSpansParams,
   RowSpanContext,
   SpanMeta,
-  SpanRowsSpec,
+  SpanCellSpec,
   SpanSegment,
 } from './types'
 
@@ -13,7 +14,7 @@ function cellDataEqual(a: GridCell, b: GridCell): boolean {
 }
 
 function shouldMergeWithPrevious(
-  spec: SpanRowsSpec,
+  spec: SpanCellSpec,
   columnIndex: number,
   columnId: string,
   anchorRow: number,
@@ -50,19 +51,19 @@ function spanHeight(
 
 function buildColumnSpan(
   columnIndex: number,
-  column: GridColumn,
+  column: ResolvedColumn,
   rowCount: number,
   getCellContent: (cell: CellCoordinate) => GridCell,
   rowMetrics: ComputeRowSpansParams['rowMetrics'],
 ): { meta: SpanMeta[]; segments: SpanSegment[] } {
-  const spec = column.spanRows
+  const spec = column.spanCell
   if (spec === undefined) {
     return { meta: [], segments: [] }
   }
 
   const meta: SpanMeta[] = new Array(rowCount)
   const segments: SpanSegment[] = []
-  const columnId = column.dataIndex
+  const columnId = column.field
 
   for (let row = 0; row < rowCount; ) {
     const anchor = row
@@ -106,10 +107,6 @@ function buildColumnSpan(
   return { meta, segments }
 }
 
-/**
- * Pre-compute per-column row span metadata. Returns null when no column has
- * `spanRows` enabled (detach / zero-cost path).
- */
 export function computeRowSpans(
   params: ComputeRowSpansParams,
 ): RowSpanContext | null {
@@ -133,7 +130,7 @@ export function computeRowSpans(
       getCellContent,
       rowMetrics,
     )
-    spanMap[column.dataIndex] = meta
+    spanMap[column.field] = meta
     metaByColumnIndex.set(columnIndex, meta)
     segmentsByColumn.set(columnIndex, segments)
   }

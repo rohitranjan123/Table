@@ -1,4 +1,5 @@
-import type { CellCoordinate, GridCell, GridColumn } from '../../types'
+import type { CellCoordinate, GridCell } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
 
 export interface SpanMeta {
   startRowIndex: number
@@ -9,22 +10,21 @@ export interface SpanMeta {
 
 export type SpanMap = Record<string, readonly SpanMeta[]>
 
-/** Compact anchor segments for bleed-from-above scans without O(n) per frame. */
 export interface SpanSegment {
   startRowIndex: number
   spanCount: number
 }
 
-export type SpanRowsCallback = (params: {
+export type SpanCellCallback = (params: {
   rowIndex: number
   columnIndex: number
   columnId: string
   getCellContent: (cell: CellCoordinate) => GridCell
 }) => boolean
 
-export type SpanRowsSpec = boolean | SpanRowsCallback
+export type SpanCellSpec = boolean | SpanCellCallback
 
-export type SpanRowsColumn = GridColumn & { spanRows: SpanRowsSpec }
+export type SpanCellColumn = ResolvedColumn & { spanCell: SpanCellSpec }
 
 export interface RowSpanContext {
   spanMap: SpanMap
@@ -35,7 +35,7 @@ export interface RowSpanContext {
 
 export interface ComputeRowSpansParams {
   rowCount: number
-  columns: GridColumn[]
+  columns: ResolvedColumn[]
   getCellContent: (cell: CellCoordinate) => GridCell
   rowMetrics: {
     getRowTop(index: number): number

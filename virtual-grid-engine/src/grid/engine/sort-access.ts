@@ -4,7 +4,8 @@ import {
   wrapGetCellContentForSort,
   type SortKeyCache,
 } from '../plugins'
-import type { CellCoordinate, GridCell, GridColumn, SortState } from '../types'
+import type { ResolvedColumn } from '../col-def'
+import type { CellCoordinate, GridCell, SortState } from '../types'
 
 export interface SortAccess {
   getCellContent: (cell: CellCoordinate) => GridCell
@@ -13,7 +14,7 @@ export interface SortAccess {
   cache: SortKeyCache
   rebuild(
     rowCount: number,
-    columns: GridColumn[],
+    columns: ResolvedColumn[],
     sortState: SortState[],
     getCellContent: (cell: CellCoordinate) => GridCell,
     clearCache: boolean,

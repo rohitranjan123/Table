@@ -39,7 +39,7 @@ Consumers use exports from `src/index.ts`:
 
 - **React:** `VirtualizedGrid`
 - **Imperative:** `createGrid(container, options)` → `GridEngine`
-- **Types:** `GridColumn`, `GridCell`, `VirtualizedGridProps`, `FrozenColumns`, etc.
+- **Types:** `ColDef`, `GridCell`, `VirtualizedGridProps`, `FrozenColumns`, `GridModules`, etc.
 
 `src/grid/engine/*` internals are `@internal` and not part of the semver surface.
 
@@ -48,15 +48,16 @@ Consumers use exports from `src/index.ts`:
 | Option | Role |
 |--------|------|
 | `width` / `height` | `number` (px), `'100%'` (fill host), or `'auto'` (CSS auto + ResizeObserver). Default `'100%'`. |
-| `columns` | Column descriptors (`dataIndex`, `title`, `width`) |
-| `rowCount` | Logical row count |
+| `columnDefs` / `defaultColDef` | AG Grid–aligned column defs (`field`, `flex`, `spanCell`, `sort`) |
+| `rowData` | Client-side row array (derives `rowCount` + internal `getCellContent`) |
+| `modules` | Kernel modules attached via `engine.plugins.attach()` |
 | `rowHeight` | Fixed height or per-index function |
 | `headerHeight` | Header band height (minimum when headers use `wrap`) |
 | `headerTextOverflow` / `cellTextOverflow` | Grid default: `ellipsis`, `overflow`, or `wrap` |
 | `columns[].headerTextOverflow` / `cellTextOverflow` | Per-column override of grid defaults |
 | `getCellContent` | Sync callback `(col, row) → GridCell` for body cells |
 | `frozenColumns` | Optional `{ left?, right? }` lists of `dataIndex` |
-| `columns[].spanRows` | Optional `true` (merge equal `GridCell.data`) or callback to continue span from row above |
+| `columns[].spanCell` | Optional `true` (merge equal cell values) or callback to continue span from row above |
 | `rowSpanRevision` | Bump to recompute span map when `getCellContent` ref is stable |
 | `sortState` / `onSortStateChange` | Controlled sort; header click cycles asc → desc → off |
 | `useColumnSort` | React hook (Glide-style) to wrap `getCellContent` outside the engine |

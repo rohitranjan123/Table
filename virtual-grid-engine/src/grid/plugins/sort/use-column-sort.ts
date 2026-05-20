@@ -1,12 +1,13 @@
 import * as React from 'react'
-import type { CellCoordinate, GridCell, GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
+import type { CellCoordinate, GridCell } from '../../types'
 import { wrapGetCellContentForSort } from './apply-sort'
 import { columnSortsToSortState } from './column-sort-to-state'
 import { computeRowOrder } from './row-order'
 import type { ColumnSort } from './types'
 
 export interface UseColumnSortParams {
-  columns: GridColumn[]
+  columns: ResolvedColumn[]
   rowCount: number
   getCellContent: (cell: CellCoordinate) => GridCell
   sort?: ColumnSort | ColumnSort[]

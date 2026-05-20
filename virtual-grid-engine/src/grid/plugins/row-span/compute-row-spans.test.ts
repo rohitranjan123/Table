@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { createRowMetrics } from '../virtualization'
-import type { GridCell, GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
+import type { GridCell } from '../../types'
 import { computeRowSpans } from './compute-row-spans'
 
 function cell(data: string | number): GridCell {
@@ -8,9 +9,9 @@ function cell(data: string | number): GridCell {
 }
 
 describe('computeRowSpans', () => {
-  it('returns null when no column has spanRows', () => {
-    const columns: GridColumn[] = [
-      { dataIndex: 'a', title: 'A', width: 100 },
+  it('returns null when no column has spanCell', () => {
+    const columns: ResolvedColumn[] = [
+      { field: 'a', title: 'A', width: 100 },
     ]
     const result = computeRowSpans({
       rowCount: 10,
@@ -21,9 +22,9 @@ describe('computeRowSpans', () => {
     expect(result).toBeNull()
   })
 
-  it('merges contiguous equal values when spanRows is true', () => {
-    const columns: GridColumn[] = [
-      { dataIndex: 'g', title: 'G', width: 100, spanRows: true },
+  it('merges contiguous equal values when spanCell is true', () => {
+    const columns: ResolvedColumn[] = [
+      { field: 'g', title: 'G', width: 100, spanCell: true },
     ]
     const values = ['a', 'a', 'a', 'b', 'b']
     const result = computeRowSpans({
@@ -52,13 +53,13 @@ describe('computeRowSpans', () => {
     expect(meta[4].isSpannedChild).toBe(true)
   })
 
-  it('uses callback spanRows to extend runs', () => {
-    const columns: GridColumn[] = [
+  it('uses callback spanCell to extend runs', () => {
+    const columns: ResolvedColumn[] = [
       {
-        dataIndex: 'g',
+        field: 'g',
         title: 'G',
         width: 100,
-        spanRows: ({ rowIndex }) => rowIndex % 2 === 1,
+        spanCell: ({ rowIndex }) => rowIndex % 2 === 1,
       },
     ]
     const result = computeRowSpans({
@@ -76,8 +77,8 @@ describe('computeRowSpans', () => {
   })
 
   it('computes totalHeight with variable rowHeight', () => {
-    const columns: GridColumn[] = [
-      { dataIndex: 'g', title: 'G', width: 100, spanRows: true },
+    const columns: ResolvedColumn[] = [
+      { field: 'g', title: 'G', width: 100, spanCell: true },
     ]
     const rowHeight = (i: number) => (i % 2 === 0 ? 40 : 20)
     const rowMetrics = createRowMetrics(4, rowHeight)
@@ -96,8 +97,8 @@ describe('computeRowSpans', () => {
   })
 
   it('returns null for zero rowCount', () => {
-    const columns: GridColumn[] = [
-      { dataIndex: 'g', title: 'G', width: 100, spanRows: true },
+    const columns: ResolvedColumn[] = [
+      { field: 'g', title: 'G', width: 100, spanCell: true },
     ]
     const result = computeRowSpans({
       rowCount: 0,
@@ -109,8 +110,8 @@ describe('computeRowSpans', () => {
   })
 
   it('stores segments for bleed-from-above scans', () => {
-    const columns: GridColumn[] = [
-      { dataIndex: 'g', title: 'G', width: 100, spanRows: true },
+    const columns: ResolvedColumn[] = [
+      { field: 'g', title: 'G', width: 100, spanCell: true },
     ]
     const result = computeRowSpans({
       rowCount: 5,

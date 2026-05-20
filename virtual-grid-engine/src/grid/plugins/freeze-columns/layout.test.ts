@@ -1,25 +1,25 @@
 import { describe, expect, it } from 'vitest'
-import type { GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
 import {
   findScrollableColumnAtOffset,
   getScrollingColumnX,
   resolveFrozenColumns,
 } from './index'
 
-const columns: GridColumn[] = [
-  { dataIndex: 'id', title: 'ID', width: 72 },
-  { dataIndex: 'name', title: 'Name', width: 140 },
-  { dataIndex: 'a', title: 'A', width: 100 },
-  { dataIndex: 'b', title: 'B', width: 100 },
-  { dataIndex: 'c', title: 'C', width: 100 },
-  { dataIndex: 'd', title: 'D', width: 100 },
-  { dataIndex: 'e', title: 'E', width: 100 },
-  { dataIndex: 'f', title: 'F', width: 100 },
-  { dataIndex: 'g', title: 'G', width: 100 },
-  { dataIndex: 'h', title: 'H', width: 100 },
-  { dataIndex: 'i', title: 'I', width: 100 },
-  { dataIndex: 'j', title: 'J', width: 100 },
-  { dataIndex: 'k', title: 'K', width: 100 },
+const columns: ResolvedColumn[] = [
+  { field: 'id', title: 'ID', width: 72 },
+  { field: 'name', title: 'Name', width: 140 },
+  { field: 'a', title: 'A', width: 100 },
+  { field: 'b', title: 'B', width: 100 },
+  { field: 'c', title: 'C', width: 100 },
+  { field: 'd', title: 'D', width: 100 },
+  { field: 'e', title: 'E', width: 100 },
+  { field: 'f', title: 'F', width: 100 },
+  { field: 'g', title: 'G', width: 100 },
+  { field: 'h', title: 'H', width: 100 },
+  { field: 'i', title: 'I', width: 100 },
+  { field: 'j', title: 'J', width: 100 },
+  { field: 'k', title: 'K', width: 100 },
 ]
 
 describe('getScrollingColumnX with non-contiguous freeze', () => {

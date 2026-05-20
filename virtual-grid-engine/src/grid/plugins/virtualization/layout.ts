@@ -1,10 +1,11 @@
-import type { GridColumn, RowHeightSpec } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
+import type { RowHeightSpec } from '../../types'
 
 export function resolveRowHeight(spec: RowHeightSpec, index: number): number {
   return typeof spec === 'number' ? spec : spec(index)
 }
 
-export function buildColumnLefts(columns: GridColumn[]): number[] {
+export function buildColumnLefts(columns: ResolvedColumn[]): number[] {
   const lefts: number[] = []
   let x = 0
   for (let i = 0; i < columns.length; i++) {
@@ -14,7 +15,7 @@ export function buildColumnLefts(columns: GridColumn[]): number[] {
   return lefts
 }
 
-export function sumColumnWidths(columns: GridColumn[]): number {
+export function sumColumnWidths(columns: ResolvedColumn[]): number {
   return columns.reduce((sum, col) => sum + col.width, 0)
 }
 
@@ -71,7 +72,7 @@ export function findRowIndexAtOffset(
 
 export function findColumnIndexAtOffset(
   columnLefts: number[],
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   offsetX: number,
 ): number {
   const n = columns.length

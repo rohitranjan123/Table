@@ -3,8 +3,8 @@ export type {
   RowSpanContext,
   SpanMap,
   SpanMeta,
-  SpanRowsCallback,
-  SpanRowsSpec,
+  SpanCellCallback,
+  SpanCellSpec,
   SpanSegment,
 } from './types'
 export { computeRowSpans } from './compute-row-spans'
@@ -15,5 +15,5 @@ export {
 export {
   getSpanningColumnIndices,
   hasRowSpanning,
-  isSpanRowsSpec,
+  isSpanCellSpec,
 } from './resolve-row-span'

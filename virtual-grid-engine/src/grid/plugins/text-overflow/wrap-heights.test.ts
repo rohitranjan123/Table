@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest'
-import type { GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
 import {
   computeEffectiveHeaderHeight,
   createWrapAwareRowMetrics,
 } from './wrap-heights'
 
-const columns: GridColumn[] = [
+const columns: ResolvedColumn[] = [
   {
-    dataIndex: 'id',
+    field: 'id',
     title: 'ID',
     width: 60,
   },
   {
-    dataIndex: 'notes',
+    field: 'notes',
     title: 'Long header title that should wrap',
     width: 80,
     headerTextOverflow: 'wrap',

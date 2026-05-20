@@ -1,4 +1,4 @@
-import type { GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
 import type { ResolvedFreeze } from './types'
 
 export function isFrozenColumn(
@@ -12,7 +12,7 @@ export function isFrozenColumn(
 
 export function leftPackedX(
   col: number,
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   freeze: ResolvedFreeze,
 ): number {
   let x = 0
@@ -25,7 +25,7 @@ export function leftPackedX(
 
 export function rightPackedX(
   col: number,
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   freeze: ResolvedFreeze,
 ): number {
   let x = 0
@@ -60,7 +60,7 @@ export function hitTestColumn(
   localX: number,
   viewportWidth: number,
   scrollLeft: number,
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   freeze: ResolvedFreeze,
 ): number {
   if (localX < freeze.leftWidth) {
@@ -81,7 +81,7 @@ export function hitTestColumn(
 /** Largest scrollable column whose strip offset is <= `offsetX`. */
 export function findScrollableColumnAtOffset(
   offsetX: number,
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   freeze: ResolvedFreeze,
 ): number {
   const n = columns.length
@@ -120,7 +120,7 @@ export function findScrollableColumnAtOffset(
 
 function hitTestPackedColumn(
   x: number,
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   indices: number[],
 ): number {
   let edge = 0

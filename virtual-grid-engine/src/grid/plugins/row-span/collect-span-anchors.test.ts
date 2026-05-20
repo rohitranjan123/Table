@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { createRowMetrics } from '../virtualization'
-import type { GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
 import { computeRowSpans } from './compute-row-spans'
 import {
   collectSpanAnchorsForColumn,
@@ -8,9 +8,9 @@ import {
 } from './collect-span-anchors'
 
 function buildContext(rowCount: number) {
-  const columns: GridColumn[] = [
-    { dataIndex: 'g', title: 'G', width: 100, spanRows: true },
-    { dataIndex: 'n', title: 'N', width: 100 },
+  const columns: ResolvedColumn[] = [
+    { field: 'g', title: 'G', width: 100, spanCell: true },
+    { field: 'n', title: 'N', width: 100 },
   ]
   const values = ['a', 'a', 'a', 'b', 'b', 'c', 'c', 'c', 'c', 'c']
   return computeRowSpans({

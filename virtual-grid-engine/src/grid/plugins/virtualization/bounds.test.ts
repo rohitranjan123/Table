@@ -8,12 +8,12 @@ import {
   OVERSCAN_COLS,
   resetVirtualizationWarningForTests,
 } from './index'
-import type { GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
 
-function demoColumns(count: number): GridColumn[] {
-  const cols: GridColumn[] = []
+function demoColumns(count: number): ResolvedColumn[] {
+  const cols: ResolvedColumn[] = []
   for (let i = 0; i < count; i++) {
-    cols.push({ dataIndex: `c${i}`, title: `C${i}`, width: 100 })
+    cols.push({ field: `c${i}`, title: `C${i}`, width: 100 })
   }
   return cols
 }
@@ -89,11 +89,11 @@ describe('isVirtualizationEnabled', () => {
 })
 
 describe('resolveFrozenColumns', () => {
-  it('resolves dataIndex keys to column indices in order', () => {
-    const columns: GridColumn[] = [
-      { dataIndex: 'id', title: 'ID', width: 72 },
-      { dataIndex: 'name', title: 'Name', width: 140 },
-      { dataIndex: 'extra', title: 'Extra', width: 100 },
+  it('resolves field keys to column indices in order', () => {
+    const columns: ResolvedColumn[] = [
+      { field: 'id', title: 'ID', width: 72 },
+      { field: 'name', title: 'Name', width: 140 },
+      { field: 'extra', title: 'Extra', width: 100 },
     ]
     const freeze = resolveFrozenColumns(columns, {
       left: ['name', 'id'],

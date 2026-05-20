@@ -6,6 +6,30 @@
   box-sizing: border-box;
 }
 
+.vgrid-engine-mount {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.vgrid-host[data-loading='true'] .vgrid-engine-mount {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.vgrid-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  font: 14px/1.4 system-ui, sans-serif;
+  color: #6b6375;
+  z-index: 2;
+}
+
 .vgrid-host:not([style*='height: auto']) {
   /* Fixed / 100% height: engine root fills host */
   min-height: 0;

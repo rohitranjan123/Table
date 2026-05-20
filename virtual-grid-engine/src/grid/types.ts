@@ -1,5 +1,5 @@
 import type { FrozenColumns } from './plugins/freeze-columns'
-import type { SpanMap, SpanMeta, SpanRowsSpec } from './plugins/row-span'
+import type { SpanMap, SpanMeta, SpanCellSpec } from './plugins/row-span'
 import type {
   ColumnSort,
   CompareMode,
@@ -7,6 +7,7 @@ import type {
   SortState,
 } from './plugins/sort'
 import type { CellTextOverflow } from './plugins/text-overflow'
+import type { GridModule } from './modules/grid-modules'
 
 export type {
   CellTextOverflow,
@@ -17,31 +18,29 @@ export type {
   SortState,
   SpanMap,
   SpanMeta,
-  SpanRowsSpec,
+  SpanCellSpec,
+  GridModule,
 }
 
-/** Column descriptor — width drives horizontal layout prefix sums. */
-export interface GridColumn {
-  dataIndex: string
-  title: string
-  width: number
+/** AG Grid–aligned column definition. */
+export interface ColDef {
+  field: string
+  headerName?: string
+  width?: number
+  flex?: number
   /**
    * When set, merges body cells vertically in this column.
-   * `true` merges contiguous rows with equal `GridCell.data`.
-   * A function receives the current row and should return whether it
-   * continues the span from the row above.
+   * `true` merges contiguous rows with equal cell values.
    */
-  spanRows?: SpanRowsSpec
-  /** Header text when wider than `width`. @default grid `headerTextOverflow` or `'ellipsis'`. */
-  headerTextOverflow?: CellTextOverflow
-  /** Body cell text when wider than `width`. @default grid `cellTextOverflow` or `'ellipsis'`. */
-  cellTextOverflow?: CellTextOverflow
-  /**
-   * When `false`, header click does not sort this column.
-   * @default true
-   */
+  spanCell?: SpanCellSpec
+  sort?: SortDirection
   sortable?: boolean
+  pinned?: 'left' | 'right'
+  headerTextOverflow?: CellTextOverflow
+  cellTextOverflow?: CellTextOverflow
 }
+
+export type DefaultColDef = Partial<ColDef>
 
 /** Cell payload returned by `getCellContent`. */
 export interface GridCell {
@@ -56,72 +55,33 @@ export type CellCoordinate = [col: number, row: number]
 /** Pixel value, fill parent (`100%`), or CSS `auto` (size from layout; use ResizeObserver). */
 export type GridSize = number | '100%' | 'auto'
 
-export interface VirtualizedGridProps {
-  /**
-   * Stable id for this grid instance (ARIA + `data-vgrid-id`).
-   * Omit to use React `useId()` — required when multiple grids share a view.
-   */
+export interface VirtualizedGridProps<T extends object = Record<string, unknown>> {
   gridId?: string
-  columns: GridColumn[]
-  rowCount: number
-  getCellContent: (cell: CellCoordinate) => GridCell
+  columnDefs: ColDef[]
+  defaultColDef?: DefaultColDef
+  rowData?: readonly (T & Record<string, unknown>)[]
+  loading?: boolean
+  enableCellSpan?: boolean
+  /** Kernel modules to attach after engine creation (AG Grid `modules` parity). */
+  modules?: readonly GridModule[]
   headerHeight: number
-  /**
-   * Header text when wider than the column. `ellipsis` trims with "…",
-   * `overflow` draws past the cell edge, `wrap` grows the header band height.
-   * @default 'ellipsis'
-   */
   headerTextOverflow?: CellTextOverflow
-  /**
-   * Body cell text when wider than the column. `wrap` grows each row to fit
-   * wrapped content (uses the larger of `rowHeight` and measured height).
-   * @default 'ellipsis'
-   */
   cellTextOverflow?: CellTextOverflow
   rowHeight: RowHeightSpec
-  /** Pin columns by `dataIndex` on the left and/or right, in display order. */
   frozenColumns?: FrozenColumns
-  /**
-   * When `false`, renders every row and column (no windowing).
-   * Use only for small datasets.
-   * @default true
-   */
   virtualization?: boolean
-  /**
-   * Animate layout changes (freeze, column/row structure). Scroll stays instant.
-   * @default true
-   */
   animateTransitions?: boolean
-  /** Duration for layout transitions in ms. @default 240 */
   transitionDurationMs?: number
-  /**
-   * Grid width. `number` = px; `'100%'` = fill host; `'auto'` = CSS auto (host must get size from layout).
-   * @default '100%'
-   */
   width?: GridSize
-  /**
-   * Grid height. Same semantics as `width`.
-   * @default '100%'
-   */
   height?: GridSize
   className?: string
   onCellHover?: (cell: CellCoordinate | null) => void
   onCellSelect?: (cell: CellCoordinate) => void
-  /**
-   * Bump to recompute row-span metadata when `getCellContent` is stable
-   * but underlying span data changed.
-   */
   rowSpanRevision?: number
-  /**
-   * Active column sorts (`columnId` = `dataIndex`). Header click cycles
-   * asc → desc → off when `onSortStateChange` is set.
-   */
   sortState?: SortState[]
-  /** Fired when the user toggles sort via a column header. */
   onSortStateChange?: (sortState: SortState[]) => void
 }
 
-/** Visible index range inclusive, with overscan applied when virtualized. */
 export interface VisibleBounds {
   colStart: number
   colEnd: number

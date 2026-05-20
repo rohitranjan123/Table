@@ -1,20 +1,20 @@
-import type { GridColumn } from '../../types'
+import type { ColDef } from '../../types'
 
 /** How cell values are compared when sorting. */
 export type CompareMode = 'default' | 'raw' | 'smart'
 
 export type SortDirection = 'asc' | 'desc'
 
-/** Active sort on a column (`columnId` = `GridColumn.dataIndex`). */
+/** Active sort on a column (`columnId` = `ColDef.field`). */
 export interface SortState {
   columnId: string
   direction: SortDirection
   mode?: CompareMode
 }
 
-/** Glide-style sort descriptor keyed by column reference or id. */
+/** Glide-style sort descriptor keyed by column reference or field. */
 export interface ColumnSort {
-  column: GridColumn | string
+  column: ColDef | string
   direction?: SortDirection
   mode?: CompareMode
 }

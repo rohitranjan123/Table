@@ -1,13 +1,13 @@
-import type { GridColumn } from '../../types'
+import type { ResolvedColumn } from '../../col-def'
 import type { FrozenColumns, ResolvedFreeze } from './types'
 
 export function resolveFrozenColumns(
-  columns: GridColumn[],
+  columns: ResolvedColumn[],
   spec?: FrozenColumns,
 ): ResolvedFreeze {
   const colCount = columns.length
-  const left = indicesFromDataIndexes(columns, spec?.left ?? [])
-  const right = indicesFromDataIndexes(columns, spec?.right ?? []).filter(
+  const left = indicesFromFields(columns, spec?.left ?? [])
+  const right = indicesFromFields(columns, spec?.right ?? []).filter(
     (i) => !left.includes(i),
   )
 
@@ -40,11 +40,11 @@ export function resolveFrozenColumns(
   }
 }
 
-function indicesFromDataIndexes(
-  columns: GridColumn[],
+function indicesFromFields(
+  columns: ResolvedColumn[],
   dataIndexes: readonly string[],
 ): number[] {
-  const map = new Map(columns.map((col, index) => [col.dataIndex, index]))
+  const map = new Map(columns.map((col, index) => [col.field, index]))
   const out: number[] = []
   const seen = new Set<number>()
   for (const key of dataIndexes) {
@@ -56,7 +56,7 @@ function indicesFromDataIndexes(
   return out
 }
 
-function sumWidths(columns: GridColumn[], indices: number[]): number {
+function sumWidths(columns: ResolvedColumn[], indices: number[]): number {
   let w = 0
   for (const i of indices) w += columns[i].width
   return w
