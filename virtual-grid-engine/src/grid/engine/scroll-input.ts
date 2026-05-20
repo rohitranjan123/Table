@@ -16,6 +16,7 @@ export interface ScrollInputCallbacks {
   onScheduleInteractionPaint: () => void
   onCellHover: (cell: CellCoordinate | null) => void
   onCellSelect: (cell: CellCoordinate) => void
+  onHeaderClick?: (columnIndex: number, multi: boolean) => void
 }
 
 export interface ScrollInputHandle {
@@ -23,15 +24,28 @@ export interface ScrollInputHandle {
   clearWheelAxis(): void
 }
 
-function cellFromTarget(target: EventTarget | null): CellCoordinate | null {
+function cellElementFromTarget(
+  target: EventTarget | null,
+): HTMLElement | null {
   if (!(target instanceof HTMLElement)) return null
   const cell = target.closest('.vgrid__cell')
-  if (!(cell instanceof HTMLElement)) return null
-  if (cell.dataset.header === '1') return null
+  return cell instanceof HTMLElement ? cell : null
+}
+
+function cellFromTarget(target: EventTarget | null): CellCoordinate | null {
+  const cell = cellElementFromTarget(target)
+  if (!cell || cell.dataset.header === '1') return null
   const col = Number(cell.dataset.col)
   const row = Number(cell.dataset.row)
   if (Number.isNaN(col) || Number.isNaN(row)) return null
   return [col, row]
+}
+
+function headerColumnFromTarget(target: EventTarget | null): number | null {
+  const cell = cellElementFromTarget(target)
+  if (!cell || cell.dataset.header !== '1') return null
+  const col = Number(cell.dataset.col)
+  return Number.isNaN(col) ? null : col
 }
 
 function sameCell(
@@ -120,6 +134,12 @@ export function attachScrollInput(
   }
 
   const onViewportClick = (event: MouseEvent) => {
+    const headerCol = headerColumnFromTarget(event.target)
+    if (headerCol !== null) {
+      callbacks.onHeaderClick?.(headerCol, event.shiftKey)
+      callbacks.onSchedulePaint(true)
+      return
+    }
     const coord = cellFromTarget(event.target)
     if (!coord) return
     setSelectedCell(coord)

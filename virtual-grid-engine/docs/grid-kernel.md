@@ -9,6 +9,7 @@
 | Row/column windowing (virtualization) | `src/grid/plugins/virtualization/` |
 | Frozen column layout math | `src/grid/plugins/freeze-columns/` |
 | Column row spanning (floating anchor cells) | `src/grid/plugins/row-span/` |
+| Column sort (key extract + row permutation) | `src/grid/plugins/sort/` |
 | DOM shell, scroll, paint scheduling | `src/grid/engine/` |
 | React adapter | `src/grid/VirtualizedGrid.tsx` |
 
@@ -57,6 +58,8 @@ Consumers use exports from `src/index.ts`:
 | `frozenColumns` | Optional `{ left?, right? }` lists of `dataIndex` |
 | `columns[].spanRows` | Optional `true` (merge equal `GridCell.data`) or callback to continue span from row above |
 | `rowSpanRevision` | Bump to recompute span map when `getCellContent` ref is stable |
+| `sortState` / `onSortStateChange` | Controlled sort; header click cycles asc → desc → off |
+| `useColumnSort` | React hook (Glide-style) to wrap `getCellContent` outside the engine |
 | `virtualization` | Windowing on/off (forced on for huge grids) |
 | `width` / `height` | Container size; omit to fill parent + `ResizeObserver` |
 

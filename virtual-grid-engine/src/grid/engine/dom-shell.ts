@@ -15,9 +15,9 @@ export interface GridDomShell {
   freezeDividerRight: HTMLDivElement
 }
 
-function createLayer(): HTMLDivElement {
+function createLayer(kind: 'header' | 'body'): HTMLDivElement {
   const layer = document.createElement('div')
-  layer.className = 'vgrid__layer'
+  layer.className = `vgrid__layer vgrid__layer--${kind}`
   return layer
 }
 
@@ -41,12 +41,12 @@ export function createGridDomShell(
   const viewport = document.createElement('div')
   viewport.className = 'vgrid__viewport'
 
-  const layerHeaderScroll = createLayer()
-  const layerHeaderFrozenLeft = createLayer()
-  const layerHeaderFrozenRight = createLayer()
-  const layerFrozenLeft = createLayer()
-  const layerFrozenRight = createLayer()
-  const layerBody = createLayer()
+  const layerHeaderScroll = createLayer('header')
+  const layerHeaderFrozenLeft = createLayer('header')
+  const layerHeaderFrozenRight = createLayer('header')
+  const layerFrozenLeft = createLayer('body')
+  const layerFrozenRight = createLayer('body')
+  const layerBody = createLayer('body')
 
   const freezeDividerLeft = document.createElement('div')
   freezeDividerLeft.className =

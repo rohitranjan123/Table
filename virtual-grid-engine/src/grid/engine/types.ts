@@ -6,6 +6,7 @@ import type {
   GridColumn,
   GridSize,
   RowHeightSpec,
+  SortState,
 } from '../types'
 
 export interface GridEngineOptions {
@@ -29,6 +30,8 @@ export interface GridEngineOptions {
   onCellSelect?: (cell: CellCoordinate) => void
   /** Bump to recompute row-span metadata when `getCellContent` is stable. */
   rowSpanRevision?: number
+  sortState?: SortState[]
+  onSortStateChange?: (sortState: SortState[]) => void
 }
 
 export interface GridScrollPosition {
@@ -41,4 +44,6 @@ export interface GridEngine {
   updateOptions(options: Partial<GridEngineOptions>): void
   getScroll(): GridScrollPosition
   scrollTo(left: number, top: number): void
+  /** Display row → original data row (identity when unsorted). */
+  getOriginalRow(displayRow: number): number
 }

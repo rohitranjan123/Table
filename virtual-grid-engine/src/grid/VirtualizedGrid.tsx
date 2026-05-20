@@ -40,6 +40,8 @@ export function VirtualizedGrid({
   onCellHover,
   onCellSelect,
   rowSpanRevision,
+  sortState,
+  onSortStateChange,
 }: VirtualizedGridProps) {
   const reactId = useId()
   const gridId = gridIdProp ?? reactId
@@ -81,6 +83,8 @@ export function VirtualizedGrid({
       onCellHover: (cell) => onCellHoverRef.current?.(cell),
       onCellSelect: (cell) => onCellSelectRef.current?.(cell),
       rowSpanRevision,
+      sortState,
+      onSortStateChange,
     })
     engineRef.current = engine
 
@@ -115,6 +119,8 @@ export function VirtualizedGrid({
       onCellHover: (cell) => onCellHoverRef.current?.(cell),
       onCellSelect: (cell) => onCellSelectRef.current?.(cell),
       rowSpanRevision,
+      sortState,
+      onSortStateChange,
     })
   }, [
     gridId,
@@ -133,6 +139,8 @@ export function VirtualizedGrid({
     height,
     className,
     rowSpanRevision,
+    sortState,
+    onSortStateChange,
   ])
 
   return (

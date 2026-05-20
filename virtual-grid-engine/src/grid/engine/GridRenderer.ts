@@ -14,18 +14,25 @@ import {
   resolveCellTextOverflow,
   resolveHeaderTextOverflow,
 } from '../plugins'
+import {
+  isSortableColumn,
+  sortDirectionForColumnIndex,
+} from '../plugins'
 import type {
   CellCoordinate,
   CellTextOverflow,
   GridCell,
   GridColumn,
+  SortState,
   VisibleBounds,
 } from '../types'
 import { CellPool } from './CellPool'
 import {
+  applyCellContent,
   applyCellDom,
   applyCellInteraction,
   applyCellPosition,
+  applyHeaderSortState,
   formatCellValue,
   type CellDomState,
   type CellLayout,
@@ -54,6 +61,8 @@ export interface GridRendererContext {
   hoverCell: CellCoordinate | null
   selectedCell: CellCoordinate | null
   getCellContent: (cell: CellCoordinate) => GridCell
+  sortState: SortState[]
+  sortHeadersEnabled: boolean
   spanContext: RowSpanContext | null
   scrollActive?: boolean
   /** When true, skip trimming the free-cell pool this frame (scroll perf). */
@@ -95,15 +104,49 @@ export class GridRenderer {
   }
 
   paint(bounds: VisibleBounds, context: GridRendererContext): void {
-    this.syncSpanningColumns(context.spanContext)
+    this.paintHeaders(bounds, context)
+    this.paintBody(bounds, context)
+  }
 
-    const keepSets: Record<CellZone, Set<string>> = {
+  /** Sync sort ▲/▼ on existing header cells — no full header repaint. */
+  updateSortHeaders(
+    context: Pick<
+      GridRendererContext,
+      'columns' | 'sortState' | 'sortHeadersEnabled' | 'headerTextOverflow'
+    >,
+  ): void {
+    const headerZones: CellZone[] = [
+      'headerScroll',
+      'headerFrozenLeft',
+      'headerFrozenRight',
+    ]
+    for (const zone of headerZones) {
+      this.layers[ZONE_POOL[zone]].forEachActive((element) => {
+        if (element.dataset.header !== '1') return
+        const col = Number(element.dataset.col)
+        if (Number.isNaN(col)) return
+        const column = context.columns[col]
+        if (!column) return
+        const sortable =
+          context.sortHeadersEnabled && isSortableColumn(column)
+        const sortDirection = sortDirectionForColumnIndex(
+          context.columns,
+          context.sortState,
+          col,
+        )
+        applyHeaderSortState(element, { sortDirection, sortable })
+      })
+    }
+  }
+
+  paintHeaders(bounds: VisibleBounds, context: GridRendererContext): void {
+    const keepSets: Pick<
+      Record<CellZone, Set<string>>,
+      'headerScroll' | 'headerFrozenLeft' | 'headerFrozenRight'
+    > = {
       headerScroll: new Set(),
       headerFrozenLeft: new Set(),
       headerFrozenRight: new Set(),
-      frozenBodyLeft: new Set(),
-      frozenBodyRight: new Set(),
-      body: new Set(),
     }
 
     const { colStart, colEnd } = bounds
@@ -127,6 +170,26 @@ export class GridRenderer {
       keepSets.headerScroll.add(key)
       this.paintCell('headerScroll', key, column, -1, context)
     }
+
+    for (const zone of Object.keys(keepSets) as Array<keyof typeof keepSets>) {
+      this.layers[ZONE_POOL[zone]].prune(keepSets[zone], true)
+    }
+  }
+
+  paintBody(bounds: VisibleBounds, context: GridRendererContext): void {
+    this.syncSpanningColumns(context.spanContext)
+
+    const keepSets: Pick<
+      Record<CellZone, Set<string>>,
+      'frozenBodyLeft' | 'frozenBodyRight' | 'body'
+    > = {
+      frozenBodyLeft: new Set(),
+      frozenBodyRight: new Set(),
+      body: new Set(),
+    }
+
+    const { colStart, colEnd } = bounds
+    const { freeze } = context
 
     this.paintBodyZone(
       'frozenBodyLeft',
@@ -155,7 +218,7 @@ export class GridRenderer {
     }
 
     const trimFree = context.deferTrimFree !== true
-    for (const zone of Object.keys(keepSets) as CellZone[]) {
+    for (const zone of Object.keys(keepSets) as Array<keyof typeof keepSets>) {
       this.layers[ZONE_POOL[zone]].prune(keepSets[zone], trimFree)
     }
   }
@@ -275,6 +338,16 @@ export class GridRenderer {
     edge: 'left' | 'right' | false = false,
     isRowSpan = false,
   ): CellDomState {
+    const column = context.columns[col]
+    const sortable =
+      isHeader &&
+      context.sortHeadersEnabled &&
+      column !== undefined &&
+      isSortableColumn(column)
+    const sortDirection = isHeader
+      ? sortDirectionForColumnIndex(context.columns, context.sortState, col)
+      : undefined
+
     return {
       isHeader,
       isAlt: !isHeader && row % 2 === 1,
@@ -291,6 +364,8 @@ export class GridRenderer {
       cellType,
       isRowSpan,
       textOverflow: this.textOverflowForCell(col, isHeader, context),
+      sortDirection,
+      sortable,
     }
   }
 
@@ -443,6 +518,18 @@ export class GridRenderer {
     const pool = this.layers[ZONE_POOL[zone]]
     const element = pool.acquire(key)
 
+    if (!isHeader && this.canUseContentOnly(element, col, row, context, false)) {
+      applyCellPosition(element, layout)
+      applyCellContent(element, label, cellType)
+      if (!this.interactionMatches(element, col, row, isHeader, context)) {
+        applyCellInteraction(
+          element,
+          this.interactionState(col, row, isHeader, context),
+        )
+      }
+      return
+    }
+
     if (this.canUsePositionOnly(element, col, row, isHeader, context, false)) {
       applyCellPosition(element, layout)
       if (!this.interactionMatches(element, col, row, isHeader, context)) {
@@ -462,6 +549,23 @@ export class GridRenderer {
     )
   }
 
+  private canUseContentOnly(
+    element: HTMLDivElement,
+    col: number,
+    row: number,
+    context: GridRendererContext,
+    isRowSpan: boolean,
+  ): boolean {
+    if (element.dataset.col !== String(col)) return false
+    if (element.dataset.header !== '0' || element.dataset.row !== String(row)) {
+      return false
+    }
+    const spanFlag = isRowSpan ? '1' : '0'
+    if (element.dataset.span !== spanFlag) return false
+    const expectedOverflow = this.textOverflowForCell(col, false, context)
+    return element.dataset.textOverflow === expectedOverflow
+  }
+
   private canUsePositionOnly(
     element: HTMLDivElement,
     col: number,
@@ -472,7 +576,13 @@ export class GridRenderer {
   ): boolean {
     if (element.dataset.col !== String(col)) return false
     if (isHeader) {
-      return element.dataset.header === '1' && element.dataset.span !== '1'
+      const state = this.domState(col, row, true, 'text', _context)
+      return (
+        element.dataset.header === '1' &&
+        element.dataset.span !== '1' &&
+        element.dataset.sort === (state.sortDirection ?? '') &&
+        element.dataset.sortable === (state.sortable ? '1' : '0')
+      )
     }
     if (element.dataset.header !== '0' || element.dataset.row !== String(row)) {
       return false

@@ -96,6 +96,22 @@
   pointer-events: none;
 }
 
+/* Body layers repaint independently on sort; headers stay on a separate band. */
+.vgrid__layer--body {
+  contain: strict;
+  isolation: isolate;
+}
+
+.vgrid__layer--header {
+  contain: layout style;
+  z-index: 5;
+}
+
+/* Sort repaints body only — suppress layout transitions on body cells. */
+.vgrid__layer--body.vgrid__layer--sorting .vgrid__cell {
+  transition: none !important;
+}
+
 .vgrid__cell {
   position: absolute;
   box-sizing: border-box;
@@ -187,6 +203,27 @@
   font-weight: 600;
   color: #08060d;
   background: #f4f3ec;
+}
+
+.vgrid__cell--sortable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.vgrid__cell--sortable .vgrid__cell__label::after {
+  margin-left: 4px;
+  font-size: 10px;
+  opacity: 0.45;
+}
+
+.vgrid__cell--sort-asc .vgrid__cell__label::after {
+  content: '▲';
+  opacity: 0.9;
+}
+
+.vgrid__cell--sort-desc .vgrid__cell__label::after {
+  content: '▼';
+  opacity: 0.9;
 }
 
 .vgrid__cell--alt {

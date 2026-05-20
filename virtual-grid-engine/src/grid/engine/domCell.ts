@@ -1,6 +1,6 @@
 /** @internal Cell DOM creation and class/style application. */
 
-import type { CellTextOverflow, GridCell } from '../types'
+import type { CellTextOverflow, GridCell, SortDirection } from '../types'
 
 export interface CellDomState {
   isHeader: boolean
@@ -12,6 +12,8 @@ export interface CellDomState {
   cellType: GridCell['type']
   isRowSpan?: boolean
   textOverflow: CellTextOverflow
+  sortDirection?: SortDirection
+  sortable?: boolean
 }
 
 export interface CellLayout {
@@ -96,6 +98,37 @@ export function applyCellPosition(
   applyCellGeometry(element, layout)
 }
 
+/** Header-only: update sort indicator classes without layout or title churn. */
+export function applyHeaderSortState(
+  el: HTMLDivElement,
+  state: Pick<CellDomState, 'sortDirection' | 'sortable'>,
+): void {
+  const sortDir = state.sortDirection ?? ''
+  if (el.dataset.sort === sortDir && el.dataset.sortable === (state.sortable ? '1' : '0')) {
+    return
+  }
+
+  el.classList.toggle('vgrid__cell--sortable', state.sortable === true)
+  el.classList.toggle('vgrid__cell--sort-asc', sortDir === 'asc')
+  el.classList.toggle('vgrid__cell--sort-desc', sortDir === 'desc')
+  el.dataset.sort = sortDir
+  el.dataset.sortable = state.sortable ? '1' : '0'
+}
+
+/** Body-only: refresh label and number alignment when row data changed in place. */
+export function applyCellContent(
+  element: HTMLDivElement,
+  label: string,
+  cellType: GridCell['type'],
+): void {
+  const isNumber = cellType === 'number'
+  element.classList.toggle('vgrid__cell--number', isNumber)
+  element.dataset.cellType = cellType
+  if (element.dataset.content === label) return
+  element.dataset.content = label
+  setCellLabel(element, label)
+}
+
 export function applyCellDom(
   el: HTMLDivElement,
   state: CellDomState,
@@ -117,6 +150,13 @@ export function applyCellDom(
     state.isFrozenEdge && state.frozenEdgeSide === 'right'
       ? 'vgrid__cell--frozen-edge-right'
       : '',
+    state.isHeader && state.sortable ? 'vgrid__cell--sortable' : '',
+    state.isHeader && state.sortDirection === 'asc'
+      ? 'vgrid__cell--sort-asc'
+      : '',
+    state.isHeader && state.sortDirection === 'desc'
+      ? 'vgrid__cell--sort-desc'
+      : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -133,8 +173,16 @@ export function applyCellDom(
   el.dataset.header = state.isHeader ? '1' : '0'
   el.dataset.span = state.isRowSpan ? '1' : '0'
   el.dataset.textOverflow = state.textOverflow ?? 'ellipsis'
+  if (state.isHeader) {
+    el.dataset.sort = state.sortDirection ?? ''
+    el.dataset.sortable = state.sortable ? '1' : '0'
+  }
 
   setCellLabel(el, label)
+  if (!state.isHeader) {
+    el.dataset.content = label
+    el.dataset.cellType = state.cellType
+  }
 }
 
 export function hideCellElement(el: HTMLDivElement): void {

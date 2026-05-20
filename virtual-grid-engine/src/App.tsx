@@ -8,6 +8,7 @@ import {
   type GridColumn,
   type GridSize,
   type RowHeightSpec,
+  type SortState,
 } from './index'
 import './App.css'
 
@@ -78,6 +79,9 @@ function buildColumns(tableId: string, count: number): GridColumn[] {
 function EnterpriseDemoPanel() {
   const [hover, setHover] = useState<CellCoordinate | null>(null)
   const [selected, setSelected] = useState<CellCoordinate | null>(null)
+  const [sortState, setSortState] = useState<SortState[]>([
+    { columnId: 'notional', direction: 'desc', mode: 'smart' },
+  ])
   const cfg = ENTERPRISE_DEMO_CONFIG
 
   const status = useMemo(() => {
@@ -90,8 +94,13 @@ function EnterpriseDemoPanel() {
       const field = cfg.columns[selected[0]]?.dataIndex ?? '?'
       parts.push(`sel ${field} [${selected[0]}, ${selected[1]}]`)
     }
+    if (sortState.length > 0) {
+      parts.push(
+        `sort ${sortState.map((s) => `${s.columnId} ${s.direction}`).join(', ')}`,
+      )
+    }
     return parts.join(' · ')
-  }, [cfg.id, cfg.rowCount, cfg.columns, hover, selected])
+  }, [cfg.id, cfg.rowCount, cfg.columns, hover, selected, sortState])
 
   return (
     <article
@@ -101,6 +110,7 @@ function EnterpriseDemoPanel() {
       <header className="grid-demo__panel-header">
         <h2 id="panel-title-enterprise">{cfg.title}</h2>
         <p>{cfg.description}</p>
+        <p>Click column headers to sort (shift-click for multi-column).</p>
         <p className="grid-demo__panel-status">{status}</p>
       </header>
       <div className="grid-demo__panel-body">
@@ -119,6 +129,8 @@ function EnterpriseDemoPanel() {
           height={cfg.height}
           onCellHover={setHover}
           onCellSelect={setSelected}
+          sortState={sortState}
+          onSortStateChange={setSortState}
           headerTextOverflow="ellipsis"
         />
       </div>
@@ -126,7 +138,7 @@ function EnterpriseDemoPanel() {
   )
 }
 
-function DemoTablePanel({ config }: { config: DemoTableConfig }) {
+export function DemoTablePanel({ config }: { config: DemoTableConfig }) {
   const [hover, setHover] = useState<CellCoordinate | null>(null)
   const [selected, setSelected] = useState<CellCoordinate | null>(null)
 

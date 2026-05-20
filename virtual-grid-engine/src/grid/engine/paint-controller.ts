@@ -57,6 +57,13 @@ export class PaintController {
     this.scheduler.schedule(() => this.paint(false))
   }
 
+  /** After sort: repaint body cells only (headers updated via `updateSortHeaders`). */
+  scheduleSortBodyPaint(): void {
+    this.scheduler.cancel()
+    this.syncInteractionKeys()
+    this.paintBodyOnly(true)
+  }
+
   /** Scroll burst: paint immediately when the visible window jumps (direction reversal). */
   scheduleScrollPaint(): void {
     if (this.deps.isDestroyed()) return
@@ -159,6 +166,14 @@ export class PaintController {
   }
 
   paint(force = false): void {
+    this.paintInternal(force, 'full')
+  }
+
+  private paintBodyOnly(force = false): void {
+    this.paintInternal(force, 'body')
+  }
+
+  private paintInternal(force: boolean, mode: 'full' | 'body'): void {
     if (this.deps.isDestroyed()) return
 
     const { shell } = this.deps
@@ -203,7 +218,7 @@ export class PaintController {
     this.lastScrollTop = scrollTop
     this.syncInteractionKeys()
 
-    this.deps.renderer.paint(bounds, {
+    const context = {
       columns: options.columns,
       columnLefts: this.deps.getColumnLefts(),
       rowCount: options.rowCount,
@@ -217,10 +232,18 @@ export class PaintController {
       hoverCell: options.hoverCell,
       selectedCell: options.selectedCell,
       getCellContent: options.getCellContent,
+      sortState: options.sortState ?? [],
+      sortHeadersEnabled: options.sortHeadersEnabled ?? false,
       spanContext: options.spanContext ?? null,
       scrollActive: options.scrollActive ?? false,
       deferTrimFree: this.deps.isScrollActive(),
-    })
+    }
+
+    if (mode === 'body') {
+      this.deps.renderer.paintBody(bounds, context)
+    } else {
+      this.deps.renderer.paint(bounds, context)
+    }
   }
 
   notifyScroll(): void {

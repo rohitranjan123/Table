@@ -19,6 +19,11 @@ export {
   type SpanMap,
   type SpanMeta,
   type SpanRowsSpec,
+  type ColumnSort,
+  type CompareMode,
+  type SortDirection,
+  type SortState,
   type VirtualizedGridProps,
   type VisibleBounds,
+  useColumnSort,
 } from './grid'

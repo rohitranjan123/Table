@@ -5,7 +5,10 @@ import {
   createRowMetrics,
   createWrapAwareRowMetrics,
   gridHasTextOverflowVisible,
+  hasRowSpanning,
   resolveFrozenColumns,
+  rowOrderEqual,
+  sortStateEqual,
   type ResolvedFreeze,
   type RowMetrics,
   type RowSpanContext,
@@ -25,8 +28,12 @@ import {
   syncSpacerAndLayers,
 } from './layout-sync'
 import { PaintController } from './paint-controller'
+import { createSortAccess } from './sort-access'
+import { setBodySortingActive } from './shell-layers'
 import { attachScrollInput } from './scroll-input'
 import type { GridEngine, GridEngineOptions, GridScrollPosition } from './types'
+import { cycleSortState } from '../plugins'
+import type { SortState } from '../types'
 
 export function createGrid(
   container: HTMLElement,
@@ -61,6 +68,9 @@ class GridEngineImpl implements GridEngine {
   private layoutAnimationTimer: number | null = null
   private animatingCols = false
   private animatingRows = false
+  private readonly sortAccess = createSortAccess()
+  private appliedSortState: SortState[] = []
+  private sortBodyFrame: number | null = null
 
   constructor(container: HTMLElement, options: GridEngineOptions) {
     this.options = options
@@ -71,6 +81,8 @@ class GridEngineImpl implements GridEngine {
       options.className,
     )
     this.freeze = resolveFrozenColumns(options.columns, options.frozenColumns)
+    this.rebuildSortAccess(true)
+    this.appliedSortState = this.cloneSortState(this.sortState)
     this.rebuildLayoutMetrics()
     this.rebuildSpanContext()
 
@@ -99,7 +111,9 @@ class GridEngineImpl implements GridEngine {
         scrollTop: this.shell.scroller.scrollTop,
         hoverCell: this.hoverCell,
         selectedCell: this.selectedCell,
-        getCellContent: this.options.getCellContent,
+        getCellContent: this.sortAccess.getCellContent,
+        sortState: this.sortState,
+        sortHeadersEnabled: this.options.onSortStateChange !== undefined,
         spanContext: this.spanContext,
         virtualization: this.virtualization,
         scrollActive: this.scrollActive,
@@ -130,11 +144,15 @@ class GridEngineImpl implements GridEngine {
   updateOptions(partial: Partial<GridEngineOptions>): void {
     if (this.destroyed) return
 
-    const needsSpanRebuild =
+    const needsSortRebuild =
       partial.columns !== undefined ||
       partial.rowCount !== undefined ||
-      partial.rowHeight !== undefined ||
       partial.getCellContent !== undefined ||
+      partial.sortState !== undefined
+
+    const needsSpanRebuild =
+      needsSortRebuild ||
+      partial.rowHeight !== undefined ||
       partial.rowSpanRevision !== undefined
 
     const needsLayoutMetricsRebuild =
@@ -160,11 +178,34 @@ class GridEngineImpl implements GridEngine {
     }
     if (partial.columns !== undefined) layoutAnimation = 'both'
 
+    const sortOnly =
+      partial.sortState !== undefined &&
+      !needsLayoutMetricsRebuild &&
+      partial.columns === undefined &&
+      partial.frozenColumns === undefined &&
+      partial.virtualization === undefined &&
+      partial.width === undefined &&
+      partial.height === undefined
+
     this.options = { ...this.options, ...partial }
+
+    if (partial.sortState !== undefined) {
+      const applied = this.applySortState(partial.sortState)
+      if (applied && sortOnly) {
+        return
+      }
+    } else if (needsSortRebuild) {
+      this.rebuildSortAccess(
+        partial.getCellContent !== undefined ||
+          partial.columns !== undefined ||
+          partial.rowCount !== undefined,
+      )
+    }
+
     if (needsLayoutMetricsRebuild) {
       this.rebuildLayoutMetrics()
     }
-    if (needsSpanRebuild) {
+    if (needsSpanRebuild && partial.sortState === undefined) {
       this.rebuildSpanContext()
     }
     if (
@@ -210,6 +251,10 @@ class GridEngineImpl implements GridEngine {
     this.paintController.schedulePaint(true)
   }
 
+  getOriginalRow(displayRow: number): number {
+    return this.sortAccess.getOriginalRow(displayRow)
+  }
+
   destroy(): void {
     if (this.destroyed) return
     this.destroyed = true
@@ -225,6 +270,11 @@ class GridEngineImpl implements GridEngine {
       window.clearTimeout(this.layoutAnimationTimer)
       this.layoutAnimationTimer = null
     }
+    if (this.sortBodyFrame !== null) {
+      cancelAnimationFrame(this.sortBodyFrame)
+      this.sortBodyFrame = null
+    }
+    setBodySortingActive(this.shell, false)
     this.hoverCell = null
     this.selectedCell = null
     this.renderer.destroy()
@@ -251,8 +301,22 @@ class GridEngineImpl implements GridEngine {
       headerHeight: this.options.headerHeight,
       headerTextOverflow: this.headerTextOverflow,
       cellTextOverflow: this.cellTextOverflow,
-      getCellContent: this.options.getCellContent,
+      getCellContent: this.sortAccess.getCellContent,
     }
+  }
+
+  private get sortState(): SortState[] {
+    return this.options.sortState ?? []
+  }
+
+  private rebuildSortAccess(clearCache: boolean): void {
+    this.sortAccess.rebuild(
+      this.options.rowCount,
+      this.options.columns,
+      this.sortState,
+      this.options.getCellContent,
+      clearCache,
+    )
   }
 
   private rebuildLayoutMetrics(): void {
@@ -275,7 +339,7 @@ class GridEngineImpl implements GridEngine {
     this.spanContext = computeRowSpans({
       rowCount: this.options.rowCount,
       columns: this.options.columns,
-      getCellContent: this.options.getCellContent,
+      getCellContent: this.sortAccess.getCellContent,
       rowMetrics: this.rowMetrics,
     })
   }
@@ -364,6 +428,7 @@ class GridEngineImpl implements GridEngine {
           this.paintController.scheduleInteractionPaint(),
         onCellHover: (cell) => this.options.onCellHover?.(cell),
         onCellSelect: (cell) => this.options.onCellSelect?.(cell),
+        onHeaderClick: (columnIndex, multi) => this.handleHeaderSort(columnIndex, multi),
       },
       () => this.hoverCell,
       (cell) => {
@@ -373,6 +438,71 @@ class GridEngineImpl implements GridEngine {
         this.selectedCell = cell
       },
     )
+  }
+
+  private handleHeaderSort(columnIndex: number, multi: boolean): void {
+    if (!this.options.onSortStateChange) return
+    const next = cycleSortState(
+      this.options.columns,
+      columnIndex,
+      this.sortState,
+      multi,
+    )
+    this.applySortState(next)
+    this.options.onSortStateChange(next)
+  }
+
+  /**
+   * Applies sort without waiting for React — updates header indicators immediately,
+   * then repaints body with content-only fast path when possible.
+   * @returns true when the update was handled (caller may skip a full repaint).
+   */
+  private applySortState(next: SortState[]): boolean {
+    if (sortStateEqual(this.appliedSortState, next)) {
+      return true
+    }
+
+    const prevOrder = this.sortAccess.rowOrder
+    this.options = { ...this.options, sortState: next }
+    this.appliedSortState = this.cloneSortState(next)
+    this.rebuildSortAccess(false)
+
+    // Header band only — never run body paint in the same turn as a header click.
+    this.renderer.updateSortHeaders({
+      columns: this.options.columns,
+      sortState: next,
+      sortHeadersEnabled: this.options.onSortStateChange !== undefined,
+      headerTextOverflow: this.headerTextOverflow,
+    })
+
+    if (rowOrderEqual(prevOrder, this.sortAccess.rowOrder)) {
+      return true
+    }
+
+    this.queueSortBodyRepaint()
+    return true
+  }
+
+  /** Body layers only (frozen + scroll); deferred so header paint stays isolated. */
+  private queueSortBodyRepaint(): void {
+    if (this.sortBodyFrame !== null) {
+      cancelAnimationFrame(this.sortBodyFrame)
+    }
+    this.sortBodyFrame = requestAnimationFrame(() => {
+      this.sortBodyFrame = null
+      if (this.destroyed) return
+
+      setBodySortingActive(this.shell, true)
+      if (hasRowSpanning(this.options.columns)) {
+        this.rebuildSpanContext()
+      }
+      this.paintController.scheduleSortBodyPaint()
+      setBodySortingActive(this.shell, false)
+    })
+  }
+
+  private cloneSortState(state: SortState[]): SortState[] {
+    return state.map((entry) => ({ ...entry }))
   }
 
   private triggerLayoutAnimation(axis: 'col' | 'row' | 'both'): void {

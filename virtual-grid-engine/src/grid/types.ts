@@ -1,8 +1,24 @@
 import type { FrozenColumns } from './plugins/freeze-columns'
 import type { SpanMap, SpanMeta, SpanRowsSpec } from './plugins/row-span'
+import type {
+  ColumnSort,
+  CompareMode,
+  SortDirection,
+  SortState,
+} from './plugins/sort'
 import type { CellTextOverflow } from './plugins/text-overflow'
 
-export type { CellTextOverflow, FrozenColumns, SpanMap, SpanMeta, SpanRowsSpec }
+export type {
+  CellTextOverflow,
+  ColumnSort,
+  CompareMode,
+  FrozenColumns,
+  SortDirection,
+  SortState,
+  SpanMap,
+  SpanMeta,
+  SpanRowsSpec,
+}
 
 /** Column descriptor — width drives horizontal layout prefix sums. */
 export interface GridColumn {
@@ -20,6 +36,11 @@ export interface GridColumn {
   headerTextOverflow?: CellTextOverflow
   /** Body cell text when wider than `width`. @default grid `cellTextOverflow` or `'ellipsis'`. */
   cellTextOverflow?: CellTextOverflow
+  /**
+   * When `false`, header click does not sort this column.
+   * @default true
+   */
+  sortable?: boolean
 }
 
 /** Cell payload returned by `getCellContent`. */
@@ -91,6 +112,13 @@ export interface VirtualizedGridProps {
    * but underlying span data changed.
    */
   rowSpanRevision?: number
+  /**
+   * Active column sorts (`columnId` = `dataIndex`). Header click cycles
+   * asc → desc → off when `onSortStateChange` is set.
+   */
+  sortState?: SortState[]
+  /** Fired when the user toggles sort via a column header. */
+  onSortStateChange?: (sortState: SortState[]) => void
 }
 
 /** Visible index range inclusive, with overscan applied when virtualized. */
