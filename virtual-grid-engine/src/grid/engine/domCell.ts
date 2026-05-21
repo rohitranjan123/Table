@@ -1,5 +1,6 @@
 /** @internal Cell DOM creation and class/style application. */
 
+import { flashCellElement } from './cell-flash'
 import type { CellTextOverflow, GridCell, SortDirection } from '../types'
 
 export interface CellDomState {
@@ -24,6 +25,8 @@ export interface CellLayout {
   zIndex: number
   col: number
   row: number
+  field?: string
+  sourceRow?: number
   useTransform?: boolean
 }
 
@@ -93,9 +96,24 @@ function applyCellGeometry(
 
 export function applyCellPosition(
   element: HTMLDivElement,
-  layout: Pick<CellLayout, 'left' | 'top' | 'width' | 'height' | 'zIndex' | 'useTransform'>,
+  layout: Pick<
+    CellLayout,
+    | 'left'
+    | 'top'
+    | 'width'
+    | 'height'
+    | 'zIndex'
+    | 'useTransform'
+    | 'field'
+    | 'row'
+    | 'sourceRow'
+  >,
 ): void {
   applyCellGeometry(element, layout)
+  if (layout.field !== undefined) element.dataset.field = layout.field
+  if (layout.sourceRow !== undefined) {
+    element.dataset.sourceRow = String(layout.sourceRow)
+  }
 }
 
 /** Header-only: update sort indicator classes without layout or title churn. */
@@ -120,13 +138,32 @@ export function applyCellContent(
   element: HTMLDivElement,
   label: string,
   cellType: GridCell['type'],
+  options?: { flashOnChange?: boolean },
 ): void {
   const isNumber = cellType === 'number'
   element.classList.toggle('vgrid__cell--number', isNumber)
   element.dataset.cellType = cellType
-  if (element.dataset.content === label) return
+  const prev = element.dataset.content
+  if (prev === label) return
   element.dataset.content = label
   setCellLabel(element, label)
+  if (options?.flashOnChange && prev !== undefined && prev !== '') {
+    flashCellElement(element)
+  }
+}
+
+/** Row-stagger reveal: set CSS delay from display row index. */
+export function applyCellReveal(
+  element: HTMLDivElement,
+  displayRow: number,
+  active: boolean,
+): void {
+  if (!active) {
+    element.style.removeProperty('--vgrid-reveal-row')
+    return
+  }
+  const cappedRow = Math.min(displayRow, 40)
+  element.style.setProperty('--vgrid-reveal-row', String(cappedRow))
 }
 
 export function applyCellDom(
@@ -134,6 +171,7 @@ export function applyCellDom(
   state: CellDomState,
   layout: CellLayout,
   label: string,
+  options?: { flashOnChange?: boolean },
 ): void {
   const cls = [
     BASE,
@@ -169,7 +207,11 @@ export function applyCellDom(
   el.setAttribute('aria-colindex', String(layout.col + 1))
   el.setAttribute('aria-rowindex', state.isHeader ? '1' : String(layout.row + 2))
   el.dataset.col = String(layout.col)
+  el.dataset.field = layout.field ?? ''
   el.dataset.row = state.isHeader ? '' : String(layout.row)
+  if (!state.isHeader && layout.sourceRow !== undefined) {
+    el.dataset.sourceRow = String(layout.sourceRow)
+  }
   el.dataset.header = state.isHeader ? '1' : '0'
   el.dataset.span = state.isRowSpan ? '1' : '0'
   el.dataset.textOverflow = state.textOverflow ?? 'ellipsis'
@@ -178,10 +220,21 @@ export function applyCellDom(
     el.dataset.sortable = state.sortable ? '1' : '0'
   }
 
-  setCellLabel(el, label)
   if (!state.isHeader) {
+    const prev = el.dataset.content
+    setCellLabel(el, label)
     el.dataset.content = label
     el.dataset.cellType = state.cellType
+    if (
+      options?.flashOnChange &&
+      prev !== undefined &&
+      prev !== '' &&
+      prev !== label
+    ) {
+      flashCellElement(el)
+    }
+  } else {
+    setCellLabel(el, label)
   }
 }
 

@@ -29,6 +29,7 @@ export interface PaintControllerDeps {
   isScrollActive: () => boolean
   onScrollActivity: () => void
   getGridId: () => string
+  onAfterPaint?: () => void
 }
 
 export class PaintController {
@@ -236,6 +237,11 @@ export class PaintController {
       sortHeadersEnabled: options.sortHeadersEnabled ?? false,
       spanContext: options.spanContext ?? null,
       scrollActive: options.scrollActive ?? false,
+      cellRevealPass: options.cellRevealPass ?? false,
+      cellFlashEnabled: options.cellFlashEnabled ?? false,
+      rowKeyBySource: options.rowKeyBySource ?? false,
+      columnKeyByField: options.columnKeyByField ?? false,
+      getOriginalRow: options.getOriginalRow,
       deferTrimFree: this.deps.isScrollActive(),
     }
 
@@ -244,6 +250,8 @@ export class PaintController {
     } else {
       this.deps.renderer.paint(bounds, context)
     }
+
+    this.deps.onAfterPaint?.()
   }
 
   notifyScroll(): void {

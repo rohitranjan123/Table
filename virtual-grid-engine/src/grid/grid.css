@@ -30,6 +30,27 @@
   z-index: 2;
 }
 
+.vgrid-loading--skeleton {
+  background: linear-gradient(
+    90deg,
+    #f0eff4 0%,
+    #e8e6ee 40%,
+    #f5f4f8 60%,
+    #f0eff4 100%
+  );
+  background-size: 200% 100%;
+  animation: vgrid-skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes vgrid-skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
 .vgrid-host:not([style*='height: auto']) {
   /* Fixed / 100% height: engine root fills host */
   min-height: 0;
@@ -49,13 +70,21 @@
 .vgrid--animate-cols .vgrid__cell {
   transition:
     left var(--vgrid-transition-duration) var(--vgrid-transition-ease),
-    width var(--vgrid-transition-duration) var(--vgrid-transition-ease);
+    width var(--vgrid-transition-duration) var(--vgrid-transition-ease),
+    transform var(--vgrid-transition-duration) var(--vgrid-transition-ease);
 }
 
 .vgrid--animate-rows .vgrid__cell {
   transition:
     top var(--vgrid-transition-duration) var(--vgrid-transition-ease),
-    height var(--vgrid-transition-duration) var(--vgrid-transition-ease);
+    height var(--vgrid-transition-duration) var(--vgrid-transition-ease),
+    transform var(--vgrid-transition-duration) var(--vgrid-transition-ease),
+    width var(--vgrid-transition-duration) var(--vgrid-transition-ease);
+}
+
+.vgrid--scroll-active.vgrid--animate-rows .vgrid__cell,
+.vgrid--scroll-active.vgrid--animate-cols .vgrid__cell {
+  transition: none !important;
 }
 
 .vgrid--animate-cols .vgrid__freeze-divider--left,
@@ -131,8 +160,8 @@
   z-index: 5;
 }
 
-/* Sort repaints body only — suppress layout transitions on body cells. */
-.vgrid__layer--body.vgrid__layer--sorting .vgrid__cell {
+/* Sort repaints body only — suppress layout transitions unless row-motion is on. */
+.vgrid:not(.vgrid--animate-rows) .vgrid__layer--body.vgrid__layer--sorting .vgrid__cell {
   transition: none !important;
 }
 
@@ -277,6 +306,49 @@
   will-change: transform;
 }
 
+/* Post-load row-stagger reveal (cell-reveal module). */
+@keyframes vgridCellReveal {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.vgrid--cell-reveal:not(.vgrid--scroll-active)
+  .vgrid__cell:not(.vgrid__cell--header)
+  .vgrid__cell__label {
+  animation: vgridCellReveal 320ms ease-out both;
+  animation-delay: calc(var(--vgrid-reveal-row, 0) * 12ms);
+}
+
+/* Hide cells until first layout (delay-render module). */
+.vgrid--delay-render:not(.vgrid--delay-render-ready) .vgrid__cell {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.vgrid--delay-render.vgrid--delay-render-ready .vgrid__cell {
+  visibility: visible;
+  opacity: 1;
+  transition: opacity 200ms ease-out;
+}
+
+/* Cell value change flash (cell-flash module). */
+.vgrid__cell--data-changed {
+  background-color: rgba(170, 59, 255, 0.45) !important;
+  box-shadow: inset 0 0 0 1px rgba(170, 59, 255, 0.5);
+}
+
+.vgrid__cell--data-changed-animation {
+  transition:
+    background-color 1s ease-out,
+    box-shadow 1s ease-out;
+  background-color: transparent !important;
+  box-shadow: inset 0 0 0 1px transparent;
+}
+
 @media (prefers-color-scheme: dark) {
   .vgrid {
     color: #9ca3af;
@@ -337,5 +409,20 @@
 
   .vgrid__scroll::-webkit-scrollbar-thumb:hover {
     background: #6b6f7e;
+  }
+
+  .vgrid-loading--skeleton {
+    background: linear-gradient(
+      90deg,
+      #1f2028 0%,
+      #2a2c36 40%,
+      #252730 60%,
+      #1f2028 100%
+    );
+    background-size: 200% 100%;
+  }
+
+  .vgrid__cell--data-changed {
+    background-color: rgba(192, 132, 252, 0.35) !important;
   }
 }

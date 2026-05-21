@@ -47,15 +47,25 @@ export function applyTransitionStyle(
   root.style.setProperty('--vgrid-transition-duration', `${milliseconds}ms`)
 }
 
+export interface RootAnimationFlags {
+  animatingCols: boolean
+  animatingRows: boolean
+  cellReveal: boolean
+  delayRender: boolean
+  delayRenderReady: boolean
+}
+
 export function syncRootClassName(
   root: HTMLDivElement,
   className: string | undefined,
-  animatingCols: boolean,
-  animatingRows: boolean,
+  flags: RootAnimationFlags,
 ): void {
   const parts = ['vgrid', className].filter(Boolean)
-  if (animatingCols) parts.push('vgrid--animate-cols')
-  if (animatingRows) parts.push('vgrid--animate-rows')
+  if (flags.animatingCols) parts.push('vgrid--animate-cols')
+  if (flags.animatingRows) parts.push('vgrid--animate-rows')
+  if (flags.cellReveal) parts.push('vgrid--cell-reveal')
+  if (flags.delayRender) parts.push('vgrid--delay-render')
+  if (flags.delayRenderReady) parts.push('vgrid--delay-render-ready')
   root.className = parts.join(' ')
 }
 

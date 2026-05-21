@@ -85,6 +85,24 @@ Add new behavior as `src/grid/plugins/<feature>/` + barrel export from `plugins/
 
 Do not implement headless or config resolution inside `GridEngine`.
 
+## Animation modules (AG Grid–aligned)
+
+Attach via `modules={[GridModules.cellReveal, ...]}` or the Olympic demo animation dropdown (`src/demo/animation-presets.ts`).
+
+| Module id | AG Grid analogue | Trigger |
+|-----------|------------------|---------|
+| `cell-reveal` | New rows fade in | `rowCount` 0 → N after load |
+| `row-motion` | `animateRows` | Sort/filter row order change |
+| `column-move` | `ag-column-moving` | Column reorder / freeze change |
+| `column-resize` | `ag-animate-autosize` | Flex/width relayout (incl. viewport resize) |
+| `cell-flash` | `CellFlashService` | Body cell value change while painted |
+| `delay-render` | `ag-delay-render` | Until first layout paint (`vgrid--delay-render-ready`) |
+| `loading-skeleton` | `ag-skeleton-loading` | React loading overlay shimmer |
+
+Root / cell classes: `vgrid--cell-reveal`, `vgrid--animate-rows`, `vgrid--animate-cols`, `vgrid--delay-render`, `vgrid__cell--data-changed*`, `vgrid-loading--skeleton`.
+
+Layout transitions (`vgrid--animate-cols` / `vgrid--animate-rows`) run only when the matching module is attached and `animateTransitions` is not `false`.
+
 ## Scroll performance
 
 - **Row metrics cache** (`createRowMetrics`): prefix-sum row offsets so `getRowTop` / `findRowIndexAtOffset` are O(1) / O(log n) — required for function `rowHeight` at large `rowCount`.

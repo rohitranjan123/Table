@@ -139,3 +139,13 @@ export function pinnedToFrozenColumns(
     ...(right.length > 0 ? { right } : {}),
   }
 }
+
+/** Column field order — detects reorder for column-move animation. */
+export function columnsOrderKey(columns: readonly ResolvedColumn[]): string {
+  return columns.map((c) => c.field).join('\u0001')
+}
+
+/** Field + rounded width — detects resize without treating flex reflow as reorder. */
+export function columnsLayoutKey(columns: readonly ResolvedColumn[]): string {
+  return columns.map((c) => `${c.field}:${Math.round(c.width)}`).join('\u0001')
+}

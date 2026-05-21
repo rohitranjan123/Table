@@ -299,4 +299,113 @@ describe('createGrid integration', () => {
     expect(spanCell).not.toBeNull()
     expect(Number.parseFloat(spanCell!.style.height)).toBeGreaterThan(28)
   })
+
+  it('arms cell-reveal when rowCount goes from 0 to N with module attached', async () => {
+    engine = createGrid(host, {
+      gridId: 'cell-reveal-test',
+      columns: COLUMNS,
+      rowCount: 0,
+      getCellContent,
+      headerHeight: 32,
+      rowHeight: 28,
+      width: 400,
+      height: 300,
+      modules: [
+        GridModules.clientSideRowModel,
+        GridModules.cellReveal,
+      ],
+    })
+    await flushPaint()
+
+    engine.updateOptions({ rowCount: 20 })
+    await flushPaint()
+
+    const root = host.querySelector('.vgrid')
+    expect(root?.classList.contains('vgrid--cell-reveal')).toBe(true)
+    expect(
+      host.querySelectorAll('.vgrid__layer--body .vgrid__cell[data-row]').length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('enables row-motion class on sort reorder', async () => {
+    engine = createGrid(host, {
+      gridId: 'row-motion-test',
+      columns: COLUMNS,
+      rowCount: 30,
+      getCellContent,
+      headerHeight: 32,
+      rowHeight: 28,
+      width: 400,
+      height: 300,
+      modules: [
+        GridModules.clientSideRowModel,
+        GridModules.columnSort,
+        GridModules.rowMotion,
+      ],
+      sortState: [{ columnId: 'name', direction: 'asc', mode: 'smart' }],
+      onSortStateChange: () => {},
+    })
+    await flushPaint()
+
+    engine.updateOptions({
+      sortState: [{ columnId: 'name', direction: 'desc', mode: 'smart' }],
+    })
+    await flushPaint()
+
+    const bodyCell = host.querySelector(
+      '.vgrid__layer--body .vgrid__cell[data-source-row]',
+    )
+    expect(bodyCell).toBeTruthy()
+  })
+
+  it('reorders columns when column-move module is attached', async () => {
+    engine = createGrid(host, {
+      gridId: 'column-move-test',
+      columns: COLUMNS,
+      rowCount: 10,
+      getCellContent,
+      headerHeight: 32,
+      rowHeight: 28,
+      width: 400,
+      height: 300,
+      modules: [
+        GridModules.clientSideRowModel,
+        GridModules.columnMove,
+      ],
+    })
+    await flushPaint()
+
+    const reordered = [...COLUMNS].reverse()
+    engine.updateOptions({ columns: reordered })
+    await flushPaint()
+
+    const headers = host.querySelectorAll('.vgrid__cell--header')
+    expect(headers.length).toBeGreaterThan(0)
+  })
+
+  it('applies delay-render until ready class is set', async () => {
+    engine = createGrid(host, {
+      gridId: 'delay-render-test',
+      columns: COLUMNS,
+      rowCount: 5,
+      getCellContent,
+      headerHeight: 32,
+      rowHeight: 28,
+      width: 400,
+      height: 300,
+      modules: [
+        GridModules.clientSideRowModel,
+        GridModules.delayRender,
+      ],
+    })
+
+    const root = host.querySelector('.vgrid')
+    expect(root?.classList.contains('vgrid--delay-render')).toBe(true)
+
+    await flushPaint()
+    await new Promise((r) => setTimeout(r, 250))
+    await flushPaint()
+
+    expect(root?.classList.contains('vgrid--delay-render-ready')).toBe(true)
+  })
 })

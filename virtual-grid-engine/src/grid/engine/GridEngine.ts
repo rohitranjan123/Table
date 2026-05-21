@@ -1,4 +1,8 @@
-import { resolveColumnWidths } from '../col-def'
+import {
+  columnsLayoutKey,
+  columnsOrderKey,
+  resolveColumnWidths,
+} from '../col-def'
 import {
   buildColumnLefts,
   computeRowSpans,
@@ -26,6 +30,7 @@ import {
   measureViewport,
   syncAriaCounts,
   syncRootClassName,
+  type RootAnimationFlags,
   syncSpacerAndLayers,
 } from './layout-sync'
 import { PaintController } from './paint-controller'
@@ -39,6 +44,15 @@ import {
   createPluginsRegistry,
   type GridPluginsRegistry,
 } from './plugins-registry'
+import {
+  BODY_CELL_SELECTOR,
+  HEADER_CELL_SELECTOR,
+  bodyCellKey,
+  cancelFlipAnimations,
+  captureCellRects,
+  headerCellKey,
+  playFlip,
+} from './layout-motion'
 export function createGrid(
   container: HTMLElement,
   initialOptions: GridEngineOptions,
@@ -75,12 +89,21 @@ class GridEngineImpl implements GridEngine {
   private layoutAnimationTimer: number | null = null
   private animatingCols = false
   private animatingRows = false
+  private cellRevealActive = false
+  private cellRevealTimer: number | null = null
+  private delayRenderReady = false
+  private delayRenderTimer: number | null = null
+  private delayRenderRevealTimer: number | null = null
   private readonly sortAccess = createSortAccess()
   private appliedSortState: SortState[] = []
   private sortBodyFrame: number | null = null
+  private lastColumnOrderKey = ''
+  private lastColumnLayoutKey = ''
 
   constructor(container: HTMLElement, options: GridEngineOptions) {
     this.options = options
+    this.lastColumnOrderKey = columnsOrderKey(options.columns)
+    this.lastColumnLayoutKey = columnsLayoutKey(options.columns)
     this.container = container
     this.plugins = createPluginsRegistry(() => {
       this.rebuildSpanContext()
@@ -127,7 +150,15 @@ class GridEngineImpl implements GridEngine {
         spanContext: this.spanContext,
         virtualization: this.virtualization,
         scrollActive: this.scrollActive,
+        cellRevealPass: this.cellRevealActive && !this.scrollActive,
+        cellFlashEnabled: this.plugins.has('cell-flash'),
+        rowKeyBySource: this.plugins.has('row-motion'),
+        columnKeyByField:
+          this.plugins.has('column-move') || this.plugins.has('column-resize'),
+        getOriginalRow: (displayRow: number) =>
+          this.sortAccess.getOriginalRow(displayRow),
       }),
+      onAfterPaint: () => this.completeDelayRenderIfNeeded(),
       getRowMetrics: () => this.rowMetrics,
       getFreeze: () => this.freeze,
       getColumnLefts: () => this.columnLefts,
@@ -154,6 +185,13 @@ class GridEngineImpl implements GridEngine {
       this.rebuildSpanContext()
     }
 
+    if (this.plugins.has('delay-render')) {
+      this.delayRenderReady = false
+      this.applyChrome()
+    }
+    if (this.options.rowCount > 0) {
+      this.maybeArmCellReveal(0, this.options.rowCount)
+    }
     this.paintController.schedulePaint(true)
   }
 
@@ -181,19 +219,15 @@ class GridEngineImpl implements GridEngine {
       needsLayoutMetricsRebuild ||
       partial.virtualization !== undefined
 
-    let layoutAnimation: 'col' | 'row' | 'both' | null = null
-    if (partial.frozenColumns !== undefined) layoutAnimation = 'col'
-    if (
-      partial.rowHeight !== undefined ||
-      partial.rowCount !== undefined ||
-      partial.headerTextOverflow !== undefined ||
-      partial.cellTextOverflow !== undefined ||
-      partial.headerHeight !== undefined
-    ) {
-      layoutAnimation = layoutAnimation === 'col' ? 'both' : 'row'
-    }
-    if (partial.columns !== undefined || partial.columnDefs !== undefined) {
-      layoutAnimation = 'both'
+    const prevRowCount = this.options.rowCount
+
+    let columnsOrderChanged = false
+    let columnsLayoutChanged = false
+    if (partial.columns !== undefined) {
+      const orderKey = columnsOrderKey(partial.columns)
+      const layoutKey = columnsLayoutKey(partial.columns)
+      columnsOrderChanged = orderKey !== this.lastColumnOrderKey
+      columnsLayoutChanged = layoutKey !== this.lastColumnLayoutKey
     }
 
     const sortOnly =
@@ -207,6 +241,19 @@ class GridEngineImpl implements GridEngine {
       partial.height === undefined
 
     this.options = { ...this.options, ...partial }
+
+    if (partial.rowCount !== undefined) {
+      this.maybeArmCellReveal(prevRowCount, this.options.rowCount)
+    }
+
+    if (partial.rowCount !== undefined && this.plugins.has('delay-render')) {
+      this.delayRenderReady = false
+      if (this.delayRenderRevealTimer !== null) {
+        window.clearTimeout(this.delayRenderRevealTimer)
+        this.delayRenderRevealTimer = null
+      }
+      this.applyChrome()
+    }
 
     if (partial.sortState !== undefined) {
       const applied = this.applySortState(partial.sortState)
@@ -232,18 +279,54 @@ class GridEngineImpl implements GridEngine {
       this.rebuildSpanContext()
     }
     if (
-      partial.columns ||
-      partial.columnDefs ||
-      partial.frozenColumns ||
+      partial.columns !== undefined ||
+      partial.columnDefs !== undefined ||
+      partial.frozenColumns !== undefined ||
       partial.virtualization !== undefined
     ) {
-      this.rebuildColumnLayout(this.viewportWidth)
+      if (
+        partial.columns === undefined ||
+        columnsOrderChanged ||
+        columnsLayoutChanged
+      ) {
+        this.rebuildColumnLayout(this.viewportWidth)
+      }
       this.freeze = resolveFrozenColumns(
         this.options.columns,
         this.options.frozenColumns,
       )
+      if (partial.columns !== undefined) {
+        this.lastColumnOrderKey = columnsOrderKey(this.options.columns)
+        this.lastColumnLayoutKey = columnsLayoutKey(this.options.columns)
+      }
     }
-    if (needsPoolReset) {
+    const dataFlashOnly =
+      partial.getCellContent !== undefined &&
+      partial.columns === undefined &&
+      partial.columnDefs === undefined &&
+      partial.rowCount === undefined &&
+      partial.rowHeight === undefined &&
+      partial.headerHeight === undefined &&
+      partial.headerTextOverflow === undefined &&
+      partial.cellTextOverflow === undefined &&
+      partial.virtualization === undefined
+
+    const columnStructureChange =
+      partial.columns !== undefined || partial.columnDefs !== undefined
+    const rowStructureChange =
+      partial.rowCount !== undefined ||
+      partial.rowHeight !== undefined ||
+      partial.virtualization !== undefined
+    const skipPoolClearForColumnMotion =
+      columnStructureChange &&
+      !rowStructureChange &&
+      (this.plugins.has('column-move') || this.plugins.has('column-resize'))
+
+    if (
+      needsPoolReset &&
+      !(dataFlashOnly && this.plugins.has('cell-flash')) &&
+      !skipPoolClearForColumnMotion
+    ) {
       this.renderer.clearPools()
       this.paintController.resetBounds()
     }
@@ -251,15 +334,43 @@ class GridEngineImpl implements GridEngine {
       this.syncResizeObserver()
     }
     this.applyChrome()
-    if (layoutAnimation) this.triggerLayoutAnimation(layoutAnimation)
     this.syncLayout()
-    if (layoutAnimation) {
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => this.paintController.schedulePaint(true))
-      })
-    } else {
+
+    const motionDuration = this.options.transitionDurationMs ?? 400
+    const runColumnMoveFlip =
+      columnsOrderChanged && this.plugins.has('column-move')
+    const runColumnResizeCss =
+      columnsLayoutChanged &&
+      !columnsOrderChanged &&
+      this.plugins.has('column-resize')
+
+    if (runColumnMoveFlip) {
+      const headerBefore = captureCellRects(
+        this.shell.root,
+        HEADER_CELL_SELECTOR,
+        headerCellKey,
+      )
+      const bodyBefore = captureCellRects(
+        this.shell.root,
+        BODY_CELL_SELECTOR,
+        bodyCellKey,
+      )
       this.paintController.schedulePaint(true)
+      const snapshots = new Map([...headerBefore, ...bodyBefore])
+      playFlip(snapshots, motionDuration, () => {
+        cancelFlipAnimations(this.shell.root)
+        this.paintController.schedulePaint(true)
+      })
+      return
     }
+
+    if (runColumnResizeCss) {
+      this.triggerLayoutAnimation('col')
+      this.paintController.schedulePaint(true)
+      return
+    }
+
+    this.paintController.schedulePaint(true)
   }
 
   getScroll(): GridScrollPosition {
@@ -293,6 +404,18 @@ class GridEngineImpl implements GridEngine {
     if (this.layoutAnimationTimer !== null) {
       window.clearTimeout(this.layoutAnimationTimer)
       this.layoutAnimationTimer = null
+    }
+    if (this.cellRevealTimer !== null) {
+      window.clearTimeout(this.cellRevealTimer)
+      this.cellRevealTimer = null
+    }
+    if (this.delayRenderTimer !== null) {
+      cancelAnimationFrame(this.delayRenderTimer)
+      this.delayRenderTimer = null
+    }
+    if (this.delayRenderRevealTimer !== null) {
+      window.clearTimeout(this.delayRenderRevealTimer)
+      this.delayRenderRevealTimer = null
     }
     if (this.sortBodyFrame !== null) {
       cancelAnimationFrame(this.sortBodyFrame)
@@ -402,8 +525,7 @@ class GridEngineImpl implements GridEngine {
     syncRootClassName(
       this.shell.root,
       this.options.className,
-      this.animatingCols,
-      this.animatingRows,
+      this.rootAnimationFlags(),
     )
     syncAriaCounts(
       this.shell.root,
@@ -427,6 +549,13 @@ class GridEngineImpl implements GridEngine {
         this.options.columns,
         this.options.frozenColumns,
       )
+      if (
+        this.plugins.has('column-resize') &&
+        columnsLayoutKey(this.options.columns) !== this.lastColumnLayoutKey
+      ) {
+        this.lastColumnLayoutKey = columnsLayoutKey(this.options.columns)
+        this.triggerLayoutAnimation('col')
+      }
     }
 
     syncSpacerAndLayers({
@@ -460,6 +589,7 @@ class GridEngineImpl implements GridEngine {
   }
 
   private markScrollActive(): void {
+    cancelFlipAnimations(this.shell.root)
     this.scrollActive = true
     this.shell.root.classList.add('vgrid--scroll-active')
     if (this.scrollIdleTimer !== null) {
@@ -535,42 +665,129 @@ class GridEngineImpl implements GridEngine {
       return true
     }
 
-    this.queueSortBodyRepaint()
+    this.queueSortBodyRepaint(this.plugins.has('row-motion'))
     return true
   }
 
-  private queueSortBodyRepaint(): void {
+  private queueSortBodyRepaint(animateRows: boolean): void {
     if (this.sortBodyFrame !== null) {
       cancelAnimationFrame(this.sortBodyFrame)
     }
-    this.sortBodyFrame = requestAnimationFrame(() => {
+
+    const runPaint = (): void => {
       this.sortBodyFrame = null
       if (this.destroyed) return
 
-      setBodySortingActive(this.shell, true)
+      if (!animateRows) {
+        setBodySortingActive(this.shell, true)
+      }
       if (hasRowSpanning(this.options.columns)) {
         this.rebuildSpanContext()
       }
       this.paintController.scheduleSortBodyPaint()
-      setBodySortingActive(this.shell, false)
-    })
+      if (!animateRows) {
+        setBodySortingActive(this.shell, false)
+      }
+    }
+
+    if (animateRows) {
+      const bodyBefore = captureCellRects(
+        this.shell.root,
+        BODY_CELL_SELECTOR,
+        bodyCellKey,
+      )
+      const duration = this.options.transitionDurationMs ?? 400
+      this.sortBodyFrame = requestAnimationFrame(() => {
+        runPaint()
+        playFlip(bodyBefore, duration, () => {
+          cancelFlipAnimations(this.shell.root)
+          this.paintController.schedulePaint(true)
+        })
+      })
+      return
+    }
+
+    this.sortBodyFrame = requestAnimationFrame(runPaint)
   }
 
   private cloneSortState(state: SortState[]): SortState[] {
     return state.map((entry) => ({ ...entry }))
   }
 
+  private rootAnimationFlags(): RootAnimationFlags {
+    return {
+      animatingCols: this.animatingCols,
+      animatingRows: this.animatingRows,
+      cellReveal: this.cellRevealActive,
+      delayRender:
+        this.plugins.has('delay-render') && !this.delayRenderReady,
+      delayRenderReady:
+        this.plugins.has('delay-render') && this.delayRenderReady,
+    }
+  }
+
+  private maybeArmCellReveal(prev: number, next: number): void {
+    if (!this.plugins.has('cell-reveal')) return
+    if (prev !== 0 || next <= 0) return
+    if (this.scrollActive) return
+    this.armCellReveal()
+  }
+
+  private armCellReveal(): void {
+    if (this.cellRevealTimer !== null) {
+      window.clearTimeout(this.cellRevealTimer)
+      this.cellRevealTimer = null
+    }
+    this.cellRevealActive = true
+    this.applyChrome()
+    this.paintController.schedulePaint(true)
+    const staggerCap = Math.min(Math.max(0, this.options.rowCount - 1), 40)
+    const duration = this.options.transitionDurationMs ?? 240
+    const totalMs = staggerCap * 12 + duration + 80
+    this.cellRevealTimer = window.setTimeout(() => {
+      this.cellRevealActive = false
+      this.cellRevealTimer = null
+      this.applyChrome()
+      this.paintController.schedulePaint(true)
+    }, totalMs)
+  }
+
+  private completeDelayRenderIfNeeded(): void {
+    if (!this.plugins.has('delay-render') || this.delayRenderReady) return
+    if (this.options.rowCount <= 0) return
+    if (this.delayRenderRevealTimer !== null) return
+
+    this.delayRenderRevealTimer = window.setTimeout(() => {
+      this.delayRenderRevealTimer = null
+      if (this.destroyed) return
+      this.delayRenderReady = true
+      this.applyChrome()
+      this.paintController.schedulePaint(true)
+    }, 220)
+  }
+
   private triggerLayoutAnimation(axis: 'col' | 'row' | 'both'): void {
     if (this.options.animateTransitions === false) return
 
-    const duration = this.options.transitionDurationMs ?? 240
-    if (axis === 'col' || axis === 'both') this.animatingCols = true
-    if (axis === 'row' || axis === 'both') this.animatingRows = true
+    let animateCol = false
+    let animateRow = false
+    if (axis === 'col' || axis === 'both') {
+      animateCol =
+        this.plugins.has('column-move') || this.plugins.has('column-resize')
+    }
+    if (axis === 'row' || axis === 'both') {
+      animateRow = this.plugins.has('row-motion')
+    }
+    if (!animateCol && !animateRow) return
+
+    const duration = this.options.transitionDurationMs ?? 400
+    this.shell.root.style.setProperty('--vgrid-transition-duration', `${duration}ms`)
+    if (animateCol) this.animatingCols = true
+    if (animateRow) this.animatingRows = true
     syncRootClassName(
       this.shell.root,
       this.options.className,
-      this.animatingCols,
-      this.animatingRows,
+      this.rootAnimationFlags(),
     )
 
     if (this.layoutAnimationTimer !== null) {
@@ -582,8 +799,7 @@ class GridEngineImpl implements GridEngine {
       syncRootClassName(
         this.shell.root,
         this.options.className,
-        this.animatingCols,
-        this.animatingRows,
+        this.rootAnimationFlags(),
       )
       this.layoutAnimationTimer = null
     }, duration + 32)

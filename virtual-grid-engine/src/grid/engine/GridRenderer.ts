@@ -32,6 +32,7 @@ import {
   applyCellDom,
   applyCellInteraction,
   applyCellPosition,
+  applyCellReveal,
   applyHeaderSortState,
   formatCellValue,
   type CellDomState,
@@ -65,6 +66,13 @@ export interface GridRendererContext {
   sortHeadersEnabled: boolean
   spanContext: RowSpanContext | null
   scrollActive?: boolean
+  cellRevealPass?: boolean
+  cellFlashEnabled?: boolean
+  /** Stable pool keys by source row index (row-motion). */
+  rowKeyBySource?: boolean
+  getOriginalRow?: (displayRow: number) => number
+  /** Stable pool keys by column field (column-move / column-resize). */
+  columnKeyByField?: boolean
   /** When true, skip trimming the free-cell pool this frame (scroll perf). */
   deferTrimFree?: boolean
 }
@@ -153,20 +161,20 @@ export class GridRenderer {
     const { freeze } = context
 
     for (const column of freeze.left) {
-      const key = this.cellKey('headerFrozenLeft', column, -1)
+      const key = this.cellKey('headerFrozenLeft', column, -1, context)
       keepSets.headerFrozenLeft.add(key)
       this.paintCell('headerFrozenLeft', key, column, -1, context)
     }
 
     for (const column of freeze.right) {
-      const key = this.cellKey('headerFrozenRight', column, -1)
+      const key = this.cellKey('headerFrozenRight', column, -1, context)
       keepSets.headerFrozenRight.add(key)
       this.paintCell('headerFrozenRight', key, column, -1, context)
     }
 
     for (let column = colStart; column <= colEnd; column++) {
       if (isFrozenColumn(column, freeze)) continue
-      const key = this.cellKey('headerScroll', column, -1)
+      const key = this.cellKey('headerScroll', column, -1, context)
       keepSets.headerScroll.add(key)
       this.paintCell('headerScroll', key, column, -1, context)
     }
@@ -294,7 +302,7 @@ export class GridRenderer {
         bounds,
       )
       for (const anchor of anchors) {
-        const key = this.spanCellKey(zone, column, anchor)
+        const key = this.spanCellKey(zone, column, anchor, context)
         keepSet.add(key)
         this.paintSpanCell(zone, key, column, anchor, context)
       }
@@ -302,20 +310,47 @@ export class GridRenderer {
     }
 
     for (let row = rowStart; row <= rowEnd; row++) {
-      const key = this.cellKey(zone, column, row)
+      const key = this.cellKey(zone, column, row, context)
       keepSet.add(key)
       this.paintCell(zone, key, column, row, context)
     }
   }
 
-  private cellKey(zone: CellZone, col: number, row: number): string {
+  private cellKey(
+    zone: CellZone,
+    col: number,
+    row: number,
+    context: GridRendererContext,
+  ): string {
     const prefix = ZONE_KEY_PREFIX[zone]
-    return row < 0 ? `${prefix}:${col}` : `${prefix}:${col}:${row}`
+    const field = context.columns[col]?.field ?? String(col)
+    const colKey = context.columnKeyByField ? `f:${field}` : String(col)
+
+    if (row < 0) {
+      return `${prefix}:${colKey}`
+    }
+
+    const rowKey =
+      context.rowKeyBySource && context.getOriginalRow
+        ? `src${context.getOriginalRow(row)}`
+        : String(row)
+    return `${prefix}:${colKey}:${rowKey}`
   }
 
-  private spanCellKey(zone: CellZone, col: number, anchorRow: number): string {
+  private spanCellKey(
+    zone: CellZone,
+    col: number,
+    anchorRow: number,
+    context: GridRendererContext,
+  ): string {
     const prefix = ZONE_KEY_PREFIX[zone]
-    return `${prefix}:${col}:span@${anchorRow}`
+    const field = context.columns[col]?.field ?? String(col)
+    const colKey = context.columnKeyByField ? `f:${field}` : String(col)
+    const rowKey =
+      context.rowKeyBySource && context.getOriginalRow
+        ? `src${context.getOriginalRow(anchorRow)}`
+        : String(anchorRow)
+    return `${prefix}:${colKey}:span@${rowKey}`
   }
 
   private textOverflowForCell(
@@ -421,16 +456,22 @@ export class GridRenderer {
     const height = meta.totalHeight
     const zIndex = zone === 'body' ? 1 : 3
 
-    const layout: CellLayout = {
-      left,
-      top,
-      width: columns[col].width,
-      height,
-      zIndex,
+    const layout = this.withStableLayout(
+      {
+        left,
+        top,
+        width: columns[col].width,
+        height,
+        zIndex,
+        col,
+        row: anchorRow,
+        useTransform: true,
+      },
       col,
-      row: anchorRow,
-      useTransform: true,
-    }
+      anchorRow,
+      context,
+      false,
+    )
 
     const pool = this.layers[ZONE_POOL[zone]]
     const element = pool.acquire(key)
@@ -440,6 +481,7 @@ export class GridRenderer {
       this.canUsePositionOnly(element, col, anchorRow, false, context, true)
     ) {
       applyCellPosition(element, layout)
+      applyCellReveal(element, anchorRow, context.cellRevealPass === true)
       if (
         !this.interactionMatches(
           element,
@@ -470,7 +512,9 @@ export class GridRenderer {
       ),
       layout,
       label,
+      { flashOnChange: context.cellFlashEnabled },
     )
+    applyCellReveal(element, anchorRow, context.cellRevealPass === true)
   }
 
   private paintCell(
@@ -505,22 +549,31 @@ export class GridRenderer {
       left = this.columnLeft(zone, col, context)
     }
 
-    const layout: CellLayout = {
-      left,
-      top,
-      width: columns[col].width,
-      height,
-      zIndex,
+    const layout = this.withStableLayout(
+      {
+        left,
+        top,
+        width: columns[col].width,
+        height,
+        zIndex,
+        col,
+        row,
+      },
       col,
       row,
-    }
+      context,
+      isHeader,
+    )
 
     const pool = this.layers[ZONE_POOL[zone]]
     const element = pool.acquire(key)
 
     if (!isHeader && this.canUseContentOnly(element, col, row, context, false)) {
       applyCellPosition(element, layout)
-      applyCellContent(element, label, cellType)
+      applyCellContent(element, label, cellType, {
+        flashOnChange: context.cellFlashEnabled,
+      })
+      applyCellReveal(element, row, context.cellRevealPass === true)
       if (!this.interactionMatches(element, col, row, isHeader, context)) {
         applyCellInteraction(
           element,
@@ -532,6 +585,9 @@ export class GridRenderer {
 
     if (this.canUsePositionOnly(element, col, row, isHeader, context, false)) {
       applyCellPosition(element, layout)
+      if (!isHeader) {
+        applyCellReveal(element, row, context.cellRevealPass === true)
+      }
       if (!this.interactionMatches(element, col, row, isHeader, context)) {
         applyCellInteraction(
           element,
@@ -546,7 +602,26 @@ export class GridRenderer {
       this.domState(col, row, isHeader, cellType, context, frozenEdge),
       layout,
       label,
+      { flashOnChange: context.cellFlashEnabled },
     )
+    if (!isHeader) {
+      applyCellReveal(element, row, context.cellRevealPass === true)
+    }
+  }
+
+  private withStableLayout(
+    layout: CellLayout,
+    col: number,
+    row: number,
+    context: GridRendererContext,
+    isHeader: boolean,
+  ): CellLayout {
+    const field = context.columns[col]?.field
+    const sourceRow =
+      !isHeader && context.rowKeyBySource && context.getOriginalRow
+        ? context.getOriginalRow(row)
+        : undefined
+    return { ...layout, field, sourceRow }
   }
 
   private canUseContentOnly(
@@ -556,8 +631,7 @@ export class GridRenderer {
     context: GridRendererContext,
     isRowSpan: boolean,
   ): boolean {
-    if (element.dataset.col !== String(col)) return false
-    if (element.dataset.header !== '0' || element.dataset.row !== String(row)) {
+    if (!this.stableCellIdentityMatches(element, col, row, false, context)) {
       return false
     }
     const spanFlag = isRowSpan ? '1' : '0'
@@ -566,26 +640,51 @@ export class GridRenderer {
     return element.dataset.textOverflow === expectedOverflow
   }
 
+  private stableCellIdentityMatches(
+    element: HTMLDivElement,
+    col: number,
+    row: number,
+    isHeader: boolean,
+    context: GridRendererContext,
+  ): boolean {
+    const field = context.columns[col]?.field ?? ''
+    if (context.columnKeyByField) {
+      if (element.dataset.field !== field) return false
+    } else if (element.dataset.col !== String(col)) {
+      return false
+    }
+
+    if (isHeader) {
+      return element.dataset.header === '1'
+    }
+
+    if (element.dataset.header !== '0') return false
+    if (context.rowKeyBySource && context.getOriginalRow) {
+      return (
+        element.dataset.sourceRow === String(context.getOriginalRow(row))
+      )
+    }
+    return element.dataset.row === String(row)
+  }
+
   private canUsePositionOnly(
     element: HTMLDivElement,
     col: number,
     row: number,
     isHeader: boolean,
-    _context: GridRendererContext,
+    context: GridRendererContext,
     isRowSpan: boolean,
   ): boolean {
-    if (element.dataset.col !== String(col)) return false
+    if (!this.stableCellIdentityMatches(element, col, row, isHeader, context)) {
+      return false
+    }
     if (isHeader) {
-      const state = this.domState(col, row, true, 'text', _context)
+      const state = this.domState(col, row, true, 'text', context)
       return (
-        element.dataset.header === '1' &&
         element.dataset.span !== '1' &&
         element.dataset.sort === (state.sortDirection ?? '') &&
         element.dataset.sortable === (state.sortable ? '1' : '0')
       )
-    }
-    if (element.dataset.header !== '0' || element.dataset.row !== String(row)) {
-      return false
     }
     const spanFlag = isRowSpan ? '1' : '0'
     if (element.dataset.span !== spanFlag) return false
@@ -593,7 +692,7 @@ export class GridRenderer {
     const expectedOverflow = this.textOverflowForCell(
       col,
       isHeader,
-      _context,
+      context,
     )
     return element.dataset.textOverflow === expectedOverflow
   }
