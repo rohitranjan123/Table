@@ -9,6 +9,11 @@ import {
   type WheelDeltaState,
 } from './wheel'
 
+export interface ScrollClampLimits {
+  maxLeft: number
+  maxTop: number
+}
+
 export interface ScrollInputCallbacks {
   onSchedulePaint: (force?: boolean) => void
   /** Native scrollbar / programmatic scroll — may sync-paint on window jump. */
@@ -17,6 +22,8 @@ export interface ScrollInputCallbacks {
   onCellHover: (cell: CellCoordinate | null) => void
   onCellSelect: (cell: CellCoordinate) => void
   onHeaderClick?: (columnIndex: number, multi: boolean) => void
+  /** When set, caps scroll so content aligns with the inset paint viewport. */
+  getScrollClampLimits?: () => ScrollClampLimits
 }
 
 export interface ScrollInputHandle {
@@ -74,13 +81,29 @@ export function attachScrollInput(
 
   const onScrollerScroll = () => {
     clearWheelLock()
+    const limits = callbacks.getScrollClampLimits?.()
+    if (limits) {
+      if (shell.scroller.scrollLeft > limits.maxLeft) {
+        shell.scroller.scrollLeft = limits.maxLeft
+      }
+      if (shell.scroller.scrollTop > limits.maxTop) {
+        shell.scroller.scrollTop = limits.maxTop
+      }
+    }
     callbacks.onScheduleScrollPaint?.() ?? callbacks.onSchedulePaint()
   }
 
   const onRootWheel = (event: WheelEvent) => {
     const { scroller } = shell
-    const maxTop = scroller.scrollHeight - scroller.clientHeight
-    const maxLeft = scroller.scrollWidth - scroller.clientWidth
+    const browserMaxTop = scroller.scrollHeight - scroller.clientHeight
+    const browserMaxLeft = scroller.scrollWidth - scroller.clientWidth
+    const limits = callbacks.getScrollClampLimits?.()
+    const maxTop = limits
+      ? Math.min(browserMaxTop, limits.maxTop)
+      : browserMaxTop
+    const maxLeft = limits
+      ? Math.min(browserMaxLeft, limits.maxLeft)
+      : browserMaxLeft
     if (maxTop <= 0 && maxLeft <= 0) return
 
     const { deltaX, deltaY, axis } = resolveWheelDeltas(event, wheelState)

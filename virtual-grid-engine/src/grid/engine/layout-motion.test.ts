@@ -57,6 +57,46 @@ describe('layout-motion', () => {
     host.remove()
   })
 
+  it('playFlip skips cells when shouldAnimate returns false', () => {
+    const host = document.createElement('div')
+    const moving = document.createElement('div')
+    moving.className = 'vgrid__cell'
+    moving.dataset.field = 'age'
+    moving.style.position = 'absolute'
+    moving.style.left = '0'
+    moving.style.top = '0'
+    moving.style.width = '80px'
+    moving.style.height = '24px'
+
+    const still = document.createElement('div')
+    still.className = 'vgrid__cell vgrid__cell--row-span'
+    still.dataset.field = 'country'
+    still.style.transform = 'translate3d(0px, 40px, 0)'
+    still.style.width = '80px'
+    still.style.height = '80px'
+
+    host.append(moving, still)
+    document.body.appendChild(host)
+
+    const before = captureCellRects(host, '.vgrid__cell', (el) =>
+      el.dataset.field === 'age' ? 'age:0' : 'country:0',
+    )
+    moving.style.left = '120px'
+    still.style.transform = 'translate3d(50px, 40px, 0)'
+
+    playFlip(
+      before,
+      200,
+      undefined,
+      (el) => el.dataset.field === 'age',
+    )
+
+    expect(still.style.transform).toBe('translate3d(50px, 40px, 0)')
+    expect(still.style.left).toBe('')
+
+    host.remove()
+  })
+
   it('bodyCellKey uses display row when sourceRow is absent', () => {
     const cell = document.createElement('div')
     cell.dataset.field = 'country'

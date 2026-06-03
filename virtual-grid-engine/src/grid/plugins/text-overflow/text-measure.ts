@@ -2,7 +2,8 @@
 
 export const BODY_FONT = '13px system-ui, sans-serif'
 export const HEADER_FONT = '600 13px system-ui, sans-serif'
-export const LINE_HEIGHT_PX = 16
+/** Matches `.vgrid { font: 13px/1.2 ... }` line box. */
+export const LINE_HEIGHT_PX = Math.ceil(13 * 1.2)
 export const CELL_PADDING_X = 16
 export const CELL_PADDING_Y = 8
 

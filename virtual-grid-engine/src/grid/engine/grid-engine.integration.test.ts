@@ -44,6 +44,13 @@ async function flushPaint(): Promise<void> {
   })
 }
 
+function parseTranslateY(el: HTMLElement): number {
+  const match = el.style.transform.match(
+    /translate3d\([^,]+,\s*([-\d.]+)px/,
+  )
+  return match ? Number.parseFloat(match[1]!) : Number.parseFloat(el.style.top) || 0
+}
+
 describe('createGrid integration', () => {
   let host: HTMLDivElement
   let engine: GridEngine | null = null
@@ -381,6 +388,113 @@ describe('createGrid integration', () => {
 
     const headers = host.querySelectorAll('.vgrid__cell--header')
     expect(headers.length).toBeGreaterThan(0)
+  })
+
+  it('column-order-only shuffle does not shift row-span anchor tops', async () => {
+    const columns: ResolvedColumn[] = [
+      { field: 'country', title: 'Country', width: 120, spanCell: true },
+      { field: 'year', title: 'Year', width: 120, spanCell: true },
+      { field: 'sport', title: 'Sport', width: 120, spanCell: true },
+      { field: 'athlete', title: 'Athlete', width: 120 },
+      { field: 'age', title: 'Age', width: 120 },
+      { field: 'total', title: 'Total', width: 120 },
+    ]
+    const rowCount = 24
+    const getCell = ([col, row]: CellCoordinate): GridCell => {
+      const fields = columns.map((c) => c.field)
+      const key = fields[col]!
+      if (key === 'country') return { type: 'text', data: row < 12 ? 'USA' : 'UK' }
+      if (key === 'year') return { type: 'text', data: row < 12 ? '2000' : '2004' }
+      if (key === 'sport') return { type: 'text', data: 'Swimming' }
+      if (key === 'athlete') {
+        return {
+          type: 'text',
+          data: `Athlete ${row} with extra wrap text to grow row ${row}`,
+        }
+      }
+      if (key === 'age') return { type: 'number', data: 20 + (row % 5) }
+      return { type: 'number', data: row }
+    }
+
+    engine = createGrid(host, {
+      gridId: 'column-move-span-wrap',
+      columns,
+      rowCount,
+      getCellContent: getCell,
+      headerHeight: 32,
+      rowHeight: 28,
+      width: 560,
+      height: 300,
+      cellTextOverflow: 'wrap',
+      modules: [
+        GridModules.clientSideRowModel,
+        GridModules.cellSpan,
+        GridModules.columnMove,
+      ],
+    })
+    await flushPaint()
+    await flushPaint()
+
+    const spanAnchor = host.querySelector(
+      '.vgrid__cell--row-span[data-field="country"]',
+    ) as HTMLElement | null
+    expect(spanAnchor).not.toBeNull()
+    const topBefore = parseTranslateY(spanAnchor!)
+    const spacerBefore = host.querySelector('.vgrid__spacer') as HTMLElement
+    const bodyHeightBefore = Number.parseFloat(spacerBefore.style.height)
+
+    const swapped = [...columns]
+    const ageIdx = swapped.findIndex((c) => c.field === 'age')
+    const totalIdx = swapped.findIndex((c) => c.field === 'total')
+    ;[swapped[ageIdx], swapped[totalIdx]] = [
+      swapped[totalIdx]!,
+      swapped[ageIdx]!,
+    ]
+    engine.updateOptions({ columns: swapped })
+    await flushPaint()
+
+    const topAfter = parseTranslateY(spanAnchor!)
+    const bodyHeightAfter = Number.parseFloat(spacerBefore.style.height)
+    expect(Math.abs(topAfter - topBefore)).toBeLessThan(1)
+    expect(Math.abs(bodyHeightAfter - bodyHeightBefore)).toBeLessThan(1)
+  })
+
+  it('fixed-width columns stay inside the viewport at max scroll', async () => {
+    const wideColumns: ResolvedColumn[] = Array.from({ length: 6 }, (_, i) => ({
+      field: `col${i}`,
+      title: `Col ${i}`,
+      width: 120,
+    }))
+
+    engine = mountEngine(host, {
+      gridId: 'fixed-scroll',
+      columns: wideColumns,
+      rowCount: 20,
+      getCellContent,
+      headerHeight: 32,
+      rowHeight: 28,
+      width: 400,
+      height: 300,
+    })
+    await flushPaint()
+
+    const scroller = host.querySelector('.vgrid__scroll') as HTMLDivElement
+    const viewport = host.querySelector('.vgrid__viewport') as HTMLDivElement
+    scroller.scrollLeft = scroller.scrollWidth - scroller.clientWidth
+    scroller.scrollTop = scroller.scrollHeight - scroller.clientHeight
+    await flushPaint()
+
+    const lastCol = wideColumns.length - 1
+    const header = host.querySelector(
+      `.vgrid__cell--header[data-col="${lastCol}"]`,
+    ) as HTMLElement | null
+    expect(header).not.toBeNull()
+    const cellRect = header!.getBoundingClientRect()
+    const viewportRect = viewport.getBoundingClientRect()
+    expect(cellRect.right).toBeLessThanOrEqual(viewportRect.right + 1)
+    expect(cellRect.left).toBeGreaterThanOrEqual(viewportRect.left - 1)
+
+    expect(scroller.clientWidth).toBeGreaterThanOrEqual(viewport.clientWidth)
   })
 
   it('applies delay-render until ready class is set', async () => {

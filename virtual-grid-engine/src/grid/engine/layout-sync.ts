@@ -118,6 +118,66 @@ export function syncScrollbarGutter(shell: GridDomShell): void {
   root.style.setProperty('--vgrid-scrollbar-h', `${height}px`)
 }
 
+/**
+ * Extra scroll extent so native max scroll matches the inset paint viewport.
+ * (Scroller is full-size; viewport is narrower/shorter for the scrollbar track.)
+ */
+export function measureScrollPadding(shell: GridDomShell): {
+  padRight: number
+  padBottom: number
+} {
+  const { scroller, viewport, root } = shell
+  let padRight = Math.max(0, scroller.clientWidth - viewport.clientWidth)
+  let padBottom = Math.max(0, scroller.clientHeight - viewport.clientHeight)
+  const styles = getComputedStyle(root)
+  const cssRight =
+    Number.parseFloat(styles.getPropertyValue('--vgrid-scrollbar-w')) || 0
+  const cssBottom =
+    Number.parseFloat(styles.getPropertyValue('--vgrid-scrollbar-h')) || 0
+  padRight = Math.max(padRight, cssRight)
+  padBottom = Math.max(padBottom, cssBottom)
+  return { padRight, padBottom }
+}
+
+export interface ScrollClampParams {
+  scroller: HTMLDivElement
+  freeze: ResolvedFreeze
+  viewportWidth: number
+  viewportHeight: number
+  headerHeight: number
+  totalBodyHeight: number
+}
+
+/** Align native scroll limits with the inset paint viewport (scroller is wider). */
+export function scrollClampLimits(params: Omit<ScrollClampParams, 'scroller'>): {
+  maxLeft: number
+  maxTop: number
+} {
+  const {
+    freeze,
+    viewportWidth,
+    viewportHeight,
+    headerHeight,
+    totalBodyHeight,
+  } = params
+  const scrollBandW = Math.max(
+    0,
+    viewportWidth - freeze.leftWidth - freeze.rightWidth,
+  )
+  const bodyH = Math.max(0, viewportHeight - headerHeight)
+  return {
+    maxLeft: Math.max(0, freeze.scrollableWidth - scrollBandW),
+    maxTop: Math.max(0, totalBodyHeight - bodyH),
+  }
+}
+
+export function clampScrollerToViewport(params: ScrollClampParams): void {
+  const { scroller } = params
+  const { maxLeft, maxTop } = scrollClampLimits(params)
+  if (scroller.scrollLeft > maxLeft) scroller.scrollLeft = maxLeft
+  if (scroller.scrollTop > maxTop) scroller.scrollTop = maxTop
+}
+
 export function syncSpacerAndLayers(params: LayoutSyncParams): void {
   const { shell, freeze, rowMetrics, viewportWidth, viewportHeight } = params
   const { layoutHeaderHeight } = params
@@ -126,10 +186,17 @@ export function syncSpacerAndLayers(params: LayoutSyncParams): void {
   const totalHeight = layoutHeaderHeight + totalBodyHeight
   const { leftWidth, rightWidth } = freeze
 
+  const { padRight, padBottom } = measureScrollPadding(shell)
+
+  shell.spacer.style.boxSizing = 'content-box'
   shell.spacer.style.width = `${totalWidth}px`
   shell.spacer.style.height = `${totalHeight}px`
   shell.spacer.style.minWidth = `${totalWidth}px`
   shell.spacer.style.minHeight = `${totalHeight}px`
+  shell.spacer.style.paddingRight =
+    padRight > 0 ? `${padRight}px` : ''
+  shell.spacer.style.paddingBottom =
+    padBottom > 0 ? `${padBottom}px` : ''
 
   const headerWidth = Math.max(0, viewportWidth - leftWidth - rightWidth)
   const bodyHeight = Math.max(0, viewportHeight - layoutHeaderHeight)
@@ -176,6 +243,4 @@ export function syncSpacerAndLayers(params: LayoutSyncParams): void {
 
   shell.freezeDividerRight.style.left = `${Math.max(0, viewportWidth - rightWidth - 1)}px`
   shell.freezeDividerRight.style.display = rightWidth > 0 ? '' : 'none'
-
-  syncScrollbarGutter(shell)
 }

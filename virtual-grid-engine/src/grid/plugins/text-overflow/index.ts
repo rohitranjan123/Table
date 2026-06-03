@@ -16,8 +16,12 @@ export {
   heightForWrappedLines,
   measureWrappedLineCount,
 } from './text-measure'
+export { measureDisplayedWrapCellHeight } from './dom-wrap-measure'
 export {
+  buildWrapRowHeightsArray,
   computeEffectiveHeaderHeight,
+  createRowMetricsFromWrapHeights,
   createWrapAwareRowMetrics,
+  estimateWrapRowHeight,
   type WrapMetricsInput,
 } from './wrap-heights'

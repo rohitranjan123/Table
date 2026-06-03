@@ -45,24 +45,68 @@ export function createRowMetrics(
 
   const heights = rowHeight
 
+  return rowMetricsFromTopsAndHeights(rowCount, tops, heights)
+}
+
+function findRowIndexAtOffset(
+  rowCount: number,
+  tops: Float64Array,
+  offsetY: number,
+): number {
+  if (offsetY <= 0) return 0
+
+  let low = 0
+  let high = rowCount - 1
+  while (low < high) {
+    const mid = Math.floor((low + high + 1) / 2)
+    if (tops[mid]! <= offsetY) low = mid
+    else high = mid - 1
+  }
+
+  if (tops[low + 1]! > offsetY) return low
+  return Math.min(rowCount - 1, low + 1)
+}
+
+function rowMetricsFromTopsAndHeights(
+  rowCount: number,
+  tops: Float64Array,
+  heights: Float64Array | ((index: number) => number),
+): RowMetrics {
+  const getHeight =
+    typeof heights === 'function'
+      ? heights
+      : (index: number) => heights[index]!
+
   return {
     rowCount,
     getRowTop: (index) => tops[index]!,
-    getRowHeight: (index) => heights(index),
-    findRowIndexAtOffset: (offsetY, _hintRow) => {
-      if (offsetY <= 0) return 0
-
-      let low = 0
-      let high = rowCount - 1
-      while (low < high) {
-        const mid = Math.floor((low + high + 1) / 2)
-        if (tops[mid]! <= offsetY) low = mid
-        else high = mid - 1
-      }
-
-      if (tops[low + 1]! > offsetY) return low
-      return Math.min(rowCount - 1, low + 1)
-    },
+    getRowHeight: getHeight,
+    findRowIndexAtOffset: (offsetY) =>
+      findRowIndexAtOffset(rowCount, tops, offsetY),
     getTotalBodyHeight: () => tops[rowCount]!,
   }
+}
+
+/** Prefix-sum row tops from a height array (full or partial rebuild). */
+export function rebuildRowTopsFromHeights(
+  rowCount: number,
+  heights: Float64Array,
+  tops: Float64Array,
+  fromRow = 0,
+): void {
+  let y = fromRow === 0 ? 0 : tops[fromRow]!
+  for (let index = fromRow; index < rowCount; index++) {
+    y += heights[index]!
+    tops[index + 1] = y
+  }
+}
+
+/** O(1) row offsets backed by shared height/tops arrays (for wrap DOM refine). */
+export function createRowMetricsFromHeightArrays(
+  rowCount: number,
+  heights: Float64Array,
+  tops: Float64Array,
+): RowMetrics {
+  rebuildRowTopsFromHeights(rowCount, heights, tops, 0)
+  return rowMetricsFromTopsAndHeights(rowCount, tops, heights)
 }

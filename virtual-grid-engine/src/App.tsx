@@ -15,24 +15,20 @@ import {
   type AnimationPresetId,
 } from './demo/animation-presets'
 import './App.css'
+import { OLYMPIC_DATA } from './demo/data'
+import { COLUMN_INIT_CONFIG } from './demo/columnInitConfig'
 
 const OLYMPIC_URL =
   'https://www.ag-grid.com/example-assets/olympic-winners.json'
 
-const INITIAL_COLUMN_DEFS: ColDef[] = [
-  { field: 'country', spanCell: true, sort: 'asc' },
-  { field: 'year', spanCell: true, sort: 'asc' },
-  { field: 'sport', spanCell: true, sort: 'asc' },
-  { field: 'athlete' },
-  { field: 'age' },
-  { field: 'total' },
-]
+/** Bundled OLYMPIC_DATA is ~30k rows — cap demo size to keep wrap/sort/span work responsive. */
+const DEMO_ROW_LIMIT = 1500
 
 function App() {
   const containerStyle = useMemo(() => ({ width: '100%', height: '100%' }), [])
   const gridStyle = useMemo(() => ({ height: 560, width: '100%' }), [])
 
-  const [columnDefs, setColumnDefs] = useState<ColDef[]>(INITIAL_COLUMN_DEFS)
+  const [columnDefs, setColumnDefs] = useState<ColDef[]>(COLUMN_INIT_CONFIG)
   const [presetId, setPresetId] = useState<AnimationPresetId>('cell-reveal')
   const [replayNonce, setReplayNonce] = useState(0)
   const [demoLoading, setDemoLoading] = useState(false)
@@ -53,14 +49,20 @@ function App() {
   )
 
   const defaultColDef = useMemo<DefaultColDef>(
-    () => resizeColDef ?? { flex: 1 },
+    () => resizeColDef ?? { width: 120 },
     [resizeColDef],
   )
 
   const { data: fetchedData, loading: fetchLoading } =
     useFetchJson<IOlympicData>(OLYMPIC_URL)
 
-  const rowData = flashRowData ?? fetchedData
+  const rowData = useMemo(() => {
+    const source = fetchedData ?? OLYMPIC_DATA
+    if (!source?.length) return source
+    return source.length > DEMO_ROW_LIMIT
+      ? source.slice(0, DEMO_ROW_LIMIT)
+      : source
+  }, [fetchedData])
   const loading = fetchLoading || demoLoading
 
   const [sortState, setSortState] = useState<SortState[]>([
@@ -98,8 +100,8 @@ function App() {
         setColumnDefs((cols) => {
           if (cols.length < 2) return cols
           const next = [...cols]
-          const i = next.findIndex((c) => c.field === 'athlete')
-          const j = next.findIndex((c) => c.field === 'country')
+          const i = next.findIndex((c) => c.field === 'age')
+          const j = next.findIndex((c) => c.field === 'total')
           if (i >= 0 && j >= 0) {
             ;[next[i], next[j]] = [next[j], next[i]]
           }
@@ -108,7 +110,7 @@ function App() {
         break
       case 'column-resize':
         setResizeColDef((prev) =>
-          prev?.width === 120 ? { flex: 1 } : { width: 120 },
+          prev?.width === 120 ? { flex: 1 } : { width: 320 },
         )
         break
       case 'flash-cells': {
@@ -221,6 +223,7 @@ function App() {
                 height={560}
                 sortState={sortState}
                 onSortStateChange={setSortState}
+                cellTextOverflow="wrap"
               />
             </div>
           </div>

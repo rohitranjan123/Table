@@ -241,6 +241,30 @@ export class GridRenderer {
     this.clearPools()
   }
 
+  /**
+   * Walk painted body cells with wrap overflow (skips row-span anchors).
+   * Used to refine row heights from real layout after paint.
+   */
+  forEachDisplayedBodyWrapCell(
+    callback: (element: HTMLDivElement, displayRow: number) => void,
+  ): void {
+    const pools = [
+      this.layers.body,
+      this.layers.frozenBodyLeft,
+      this.layers.frozenBodyRight,
+    ]
+    for (const pool of pools) {
+      pool.forEachActive((element) => {
+        if (element.dataset.header === '1') return
+        if (element.dataset.span === '1') return
+        if (element.dataset.textOverflow !== 'wrap') return
+        const row = Number(element.dataset.row)
+        if (Number.isNaN(row)) return
+        callback(element, row)
+      })
+    }
+  }
+
   /** Fast path when only hover/selection changed — no layout or content work. */
   updateInteraction(
     hoverCell: CellCoordinate | null,

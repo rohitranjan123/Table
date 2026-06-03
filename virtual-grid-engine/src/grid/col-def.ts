@@ -145,7 +145,29 @@ export function columnsOrderKey(columns: readonly ResolvedColumn[]): string {
   return columns.map((c) => c.field).join('\u0001')
 }
 
-/** Field + rounded width — detects resize without treating flex reflow as reorder. */
+/** Field + rounded width in column order (React sync / ordered layout fingerprint). */
 export function columnsLayoutKey(columns: readonly ResolvedColumn[]): string {
   return columns.map((c) => `${c.field}:${Math.round(c.width)}`).join('\u0001')
+}
+
+/** Per-field widths, order-independent — distinguishes resize from reorder. */
+export function columnsWidthsKey(columns: readonly ResolvedColumn[]): string {
+  return columns
+    .map((c) => `${c.field}:${Math.round(c.width)}`)
+    .sort()
+    .join('\u0001')
+}
+
+/** True when active sort columns keep the same column indices after a reorder. */
+export function sortColumnIndicesUnchanged(
+  prevColumns: readonly ResolvedColumn[],
+  nextColumns: readonly ResolvedColumn[],
+  sortState: readonly SortState[],
+): boolean {
+  for (const state of sortState) {
+    const prevIdx = prevColumns.findIndex((c) => c.field === state.columnId)
+    const nextIdx = nextColumns.findIndex((c) => c.field === state.columnId)
+    if (prevIdx !== nextIdx) return false
+  }
+  return true
 }

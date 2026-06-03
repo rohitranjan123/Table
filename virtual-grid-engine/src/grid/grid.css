@@ -87,6 +87,14 @@
   transition: none !important;
 }
 
+/* Wrap rows: snap height while scrolling; ease when scroll idles after DOM refine. */
+.vgrid--wrap-height-settle:not(.vgrid--scroll-active) .vgrid__cell--to-wrap {
+  transition:
+    top var(--vgrid-transition-duration) var(--vgrid-transition-ease),
+    height var(--vgrid-transition-duration) var(--vgrid-transition-ease),
+    transform var(--vgrid-transition-duration) var(--vgrid-transition-ease);
+}
+
 .vgrid--animate-cols .vgrid__freeze-divider--left,
 .vgrid--animate-cols .vgrid__freeze-divider--right {
   transition: left var(--vgrid-transition-duration) var(--vgrid-transition-ease);
@@ -104,7 +112,6 @@
   overflow: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  scrollbar-gutter: stable;
   scrollbar-width: thin;
   scrollbar-color: #b8b6c0 #f0eff4;
 }
@@ -131,6 +138,7 @@
 .vgrid__spacer {
   flex-shrink: 0;
   pointer-events: none;
+  box-sizing: content-box;
 }
 
 .vgrid__viewport {

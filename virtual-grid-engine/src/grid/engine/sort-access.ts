@@ -18,6 +18,7 @@ export interface SortAccess {
     sortState: SortState[],
     getCellContent: (cell: CellCoordinate) => GridCell,
     clearCache: boolean,
+    reuseRowOrder?: boolean,
   ): void
 }
 
@@ -40,15 +41,25 @@ export function createSortAccess(): SortAccess {
       return wrapped.rowOrder
     },
     cache,
-    rebuild(rowCount, columns, sortState, getCellContent, clearCache) {
+    rebuild(
+      rowCount,
+      columns,
+      sortState,
+      getCellContent,
+      clearCache,
+      reuseRowOrder = false,
+    ) {
       if (clearCache) cache.clear()
-      const rowOrder = computeRowOrder(
-        rowCount,
-        columns,
-        sortState,
-        getCellContent,
-        cache,
-      )
+      const rowOrder =
+        reuseRowOrder && wrapped.rowOrder !== undefined
+          ? wrapped.rowOrder
+          : computeRowOrder(
+              rowCount,
+              columns,
+              sortState,
+              getCellContent,
+              cache,
+            )
       wrapped = wrapGetCellContentForSort(
         getCellContent,
         rowCount,

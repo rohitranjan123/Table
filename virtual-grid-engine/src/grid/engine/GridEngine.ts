@@ -1,17 +1,22 @@
 import {
-  columnsLayoutKey,
   columnsOrderKey,
+  columnsWidthsKey,
   resolveColumnWidths,
+  sortColumnIndicesUnchanged,
 } from '../col-def'
 import {
   buildColumnLefts,
   computeRowSpans,
+  buildWrapRowHeightsArray,
   computeEffectiveHeaderHeight,
   createRowMetrics,
-  createWrapAwareRowMetrics,
+  createRowMetricsFromWrapHeights,
+  gridHasCellWrap,
   gridHasTextOverflowVisible,
+  measureDisplayedWrapCellHeight,
   hasRowSpanning,
   resolveFrozenColumns,
+  resolveRowHeight,
   rowOrderEqual,
   sortStateEqual,
   type ResolvedFreeze,
@@ -31,6 +36,9 @@ import {
   syncAriaCounts,
   syncRootClassName,
   type RootAnimationFlags,
+  clampScrollerToViewport,
+  scrollClampLimits,
+  syncScrollbarGutter,
   syncSpacerAndLayers,
 } from './layout-sync'
 import { PaintController } from './paint-controller'
@@ -74,7 +82,10 @@ class GridEngineImpl implements GridEngine {
 
   private columnLefts: number[] = []
   private rowMetrics: RowMetrics = createRowMetrics(0, 28)
+  /** Per-row wrap heights (canvas seed + DOM refinement). */
+  private wrapRowHeights: Float64Array | null = null
   private effectiveHeaderHeight = 0
+  private wrapHeightSettleTimer: number | null = null
   private spanContext: RowSpanContext | null = null
   private freeze: ResolvedFreeze = resolveFrozenColumns([])
   private viewportWidth = 0
@@ -98,12 +109,13 @@ class GridEngineImpl implements GridEngine {
   private appliedSortState: SortState[] = []
   private sortBodyFrame: number | null = null
   private lastColumnOrderKey = ''
-  private lastColumnLayoutKey = ''
+  private lastColumnWidthsKey = ''
+  private columnFlipGeneration = 0
 
   constructor(container: HTMLElement, options: GridEngineOptions) {
     this.options = options
     this.lastColumnOrderKey = columnsOrderKey(options.columns)
-    this.lastColumnLayoutKey = columnsLayoutKey(options.columns)
+    this.lastColumnWidthsKey = columnsWidthsKey(options.columns)
     this.container = container
     this.plugins = createPluginsRegistry(() => {
       this.rebuildSpanContext()
@@ -159,6 +171,7 @@ class GridEngineImpl implements GridEngine {
           this.sortAccess.getOriginalRow(displayRow),
       }),
       onAfterPaint: () => this.completeDelayRenderIfNeeded(),
+      refineWrapHeightsAfterPaint: () => this.refineWrapRowHeightsFromDom(),
       getRowMetrics: () => this.rowMetrics,
       getFreeze: () => this.freeze,
       getColumnLefts: () => this.columnLefts,
@@ -209,8 +222,33 @@ class GridEngineImpl implements GridEngine {
       partial.rowHeight !== undefined ||
       partial.rowSpanRevision !== undefined
 
+    const prevRowCount = this.options.rowCount
+
+    let columnsOrderChanged = false
+    let columnsWidthsChanged = false
+    let columnOrderOnly = false
+    let columnLeftBeforeByField: Map<string, number> | null = null
+    let columnsBeforeUpdate: readonly ResolvedColumn[] | null = null
+    if (partial.columns !== undefined) {
+      columnsBeforeUpdate = this.options.columns
+      const orderKey = columnsOrderKey(partial.columns)
+      const widthsKey = columnsWidthsKey(partial.columns)
+      columnsOrderChanged = orderKey !== this.lastColumnOrderKey
+      columnsWidthsChanged = widthsKey !== this.lastColumnWidthsKey
+      columnOrderOnly = columnsOrderChanged && !columnsWidthsChanged
+      if (columnsOrderChanged) {
+        columnLeftBeforeByField = new Map()
+        for (let i = 0; i < this.options.columns.length; i++) {
+          columnLeftBeforeByField.set(
+            this.options.columns[i]!.field,
+            this.freeze.scrollableLefts[i] ?? 0,
+          )
+        }
+      }
+    }
+
     const needsLayoutMetricsRebuild =
-      needsSpanRebuild ||
+      (needsSpanRebuild && !columnOrderOnly) ||
       partial.headerTextOverflow !== undefined ||
       partial.cellTextOverflow !== undefined ||
       partial.headerHeight !== undefined
@@ -218,17 +256,6 @@ class GridEngineImpl implements GridEngine {
     const needsPoolReset =
       needsLayoutMetricsRebuild ||
       partial.virtualization !== undefined
-
-    const prevRowCount = this.options.rowCount
-
-    let columnsOrderChanged = false
-    let columnsLayoutChanged = false
-    if (partial.columns !== undefined) {
-      const orderKey = columnsOrderKey(partial.columns)
-      const layoutKey = columnsLayoutKey(partial.columns)
-      columnsOrderChanged = orderKey !== this.lastColumnOrderKey
-      columnsLayoutChanged = layoutKey !== this.lastColumnLayoutKey
-    }
 
     const sortOnly =
       partial.sortState !== undefined &&
@@ -262,20 +289,35 @@ class GridEngineImpl implements GridEngine {
       }
     }
 
+    const skipSortRowOrder =
+      columnOrderOnly &&
+      columnsBeforeUpdate !== null &&
+      partial.columns !== undefined &&
+      sortColumnIndicesUnchanged(
+        columnsBeforeUpdate,
+        partial.columns,
+        this.sortState,
+      )
+
     // Rebuild when rowData/rowCount changes even if sortState is unchanged
     // (applySortState short-circuits on equal sort and skips sort access rebuild).
     if (needsSortRebuild) {
-      this.rebuildSortAccess(
-        partial.getCellContent !== undefined ||
-          partial.columns !== undefined ||
-          partial.rowCount !== undefined,
-      )
+      const clearSortCache =
+        partial.rowCount !== undefined ||
+        (partial.columns !== undefined && !skipSortRowOrder) ||
+        (partial.getCellContent !== undefined && !skipSortRowOrder)
+      this.rebuildSortAccess(clearSortCache, skipSortRowOrder)
     }
 
     if (needsLayoutMetricsRebuild) {
       this.rebuildLayoutMetrics()
+    } else if (
+      columnsWidthsChanged &&
+      gridHasCellWrap(this.options.columns, this.cellTextOverflow)
+    ) {
+      this.rebuildLayoutMetrics()
     }
-    if (needsSpanRebuild) {
+    if (needsSpanRebuild && !columnOrderOnly) {
       this.rebuildSpanContext()
     }
     if (
@@ -287,7 +329,7 @@ class GridEngineImpl implements GridEngine {
       if (
         partial.columns === undefined ||
         columnsOrderChanged ||
-        columnsLayoutChanged
+        columnsWidthsChanged
       ) {
         this.rebuildColumnLayout(this.viewportWidth)
       }
@@ -297,7 +339,7 @@ class GridEngineImpl implements GridEngine {
       )
       if (partial.columns !== undefined) {
         this.lastColumnOrderKey = columnsOrderKey(this.options.columns)
-        this.lastColumnLayoutKey = columnsLayoutKey(this.options.columns)
+        this.lastColumnWidthsKey = columnsWidthsKey(this.options.columns)
       }
     }
     const dataFlashOnly =
@@ -340,27 +382,50 @@ class GridEngineImpl implements GridEngine {
     const runColumnMoveFlip =
       columnsOrderChanged && this.plugins.has('column-move')
     const runColumnResizeCss =
-      columnsLayoutChanged &&
+      columnsWidthsChanged &&
       !columnsOrderChanged &&
       this.plugins.has('column-resize')
 
     if (runColumnMoveFlip) {
+      const leftBeforeByField = columnLeftBeforeByField ?? new Map()
+      const movedFields = new Set<string>()
+      for (let i = 0; i < this.options.columns.length; i++) {
+        const field = this.options.columns[i]!.field
+        const before = leftBeforeByField.get(field) ?? 0
+        const after = this.freeze.scrollableLefts[i] ?? 0
+        if (Math.abs(before - after) > 0.5) movedFields.add(field)
+      }
+
+      const shouldAnimateColumnCell = (el: HTMLElement): boolean => {
+        const field = el.dataset.field
+        return field !== undefined && movedFields.has(field)
+      }
+
+      cancelFlipAnimations(this.shell.root)
+      const flipGeneration = ++this.columnFlipGeneration
+
       const headerBefore = captureCellRects(
         this.shell.root,
         HEADER_CELL_SELECTOR,
         headerCellKey,
+        shouldAnimateColumnCell,
       )
       const bodyBefore = captureCellRects(
         this.shell.root,
         BODY_CELL_SELECTOR,
         bodyCellKey,
+        shouldAnimateColumnCell,
       )
       this.paintController.schedulePaint(true)
+
       const snapshots = new Map([...headerBefore, ...bodyBefore])
       playFlip(snapshots, motionDuration, () => {
+        if (flipGeneration !== this.columnFlipGeneration || this.destroyed) {
+          return
+        }
         cancelFlipAnimations(this.shell.root)
         this.paintController.schedulePaint(true)
-      })
+      }, shouldAnimateColumnCell)
       return
     }
 
@@ -421,6 +486,12 @@ class GridEngineImpl implements GridEngine {
       cancelAnimationFrame(this.sortBodyFrame)
       this.sortBodyFrame = null
     }
+    if (this.wrapHeightSettleTimer !== null) {
+      window.clearTimeout(this.wrapHeightSettleTimer)
+      this.wrapHeightSettleTimer = null
+    }
+    this.columnFlipGeneration++
+    cancelFlipAnimations(this.shell.root)
     setBodySortingActive(this.shell, false)
     this.hoverCell = null
     this.selectedCell = null
@@ -465,21 +536,83 @@ class GridEngineImpl implements GridEngine {
     return this.options.sortState ?? []
   }
 
-  private rebuildSortAccess(clearCache: boolean): void {
+  private rebuildSortAccess(clearCache: boolean, reuseRowOrder = false): void {
     this.sortAccess.rebuild(
       this.options.rowCount,
       this.options.columns,
       this.sortState,
       this.options.getCellContent,
       clearCache,
+      reuseRowOrder,
     )
   }
 
   private rebuildLayoutMetrics(): void {
     const input = this.wrapMetricsInput()
     this.effectiveHeaderHeight = computeEffectiveHeaderHeight(input)
-    this.rowMetrics = createWrapAwareRowMetrics(input)
+    if (gridHasCellWrap(input.columns, input.cellTextOverflow)) {
+      this.wrapRowHeights = buildWrapRowHeightsArray(input)
+      this.rowMetrics = createRowMetricsFromWrapHeights(
+        input.rowCount,
+        input.rowHeight,
+        this.wrapRowHeights,
+      )
+      this.shell.root.classList.add('vgrid--wrap-row-heights')
+    } else {
+      this.wrapRowHeights = null
+      this.rowMetrics = createRowMetrics(input.rowCount, input.rowHeight)
+      this.shell.root.classList.remove('vgrid--wrap-row-heights')
+    }
     this.syncTextOverflowVisibleClass()
+  }
+
+  /**
+   * Correct wrap row heights using painted cell layout (canvas can underestimate).
+   * Returns true when row metrics changed and paint should run again this frame.
+   */
+  private refineWrapRowHeightsFromDom(): boolean {
+    const heights = this.wrapRowHeights
+    if (!heights || heights.length === 0) return false
+
+    let changed = false
+    this.renderer.forEachDisplayedBodyWrapCell((element, row) => {
+      if (row < 0 || row >= heights.length) return
+      const measured = measureDisplayedWrapCellHeight(element)
+      if (measured <= 0) return
+      const min = resolveRowHeight(this.options.rowHeight, row)
+      const next = Math.max(min, measured)
+      if (next > heights[row]! + 0.5) {
+        heights[row] = next
+        changed = true
+      }
+    })
+
+    if (!changed) return false
+
+    this.rowMetrics = createRowMetricsFromWrapHeights(
+      this.options.rowCount,
+      this.options.rowHeight,
+      heights,
+    )
+    this.rebuildSpanContext()
+    this.syncLayout()
+    if (!this.scrollActive) {
+      this.armWrapHeightSettle()
+    }
+    return true
+  }
+
+  private armWrapHeightSettle(): void {
+    if (!this.wrapRowHeights) return
+    this.shell.root.classList.add('vgrid--wrap-height-settle')
+    if (this.wrapHeightSettleTimer !== null) {
+      window.clearTimeout(this.wrapHeightSettleTimer)
+    }
+    const duration = this.options.transitionDurationMs ?? 240
+    this.wrapHeightSettleTimer = window.setTimeout(() => {
+      this.wrapHeightSettleTimer = null
+      this.shell.root.classList.remove('vgrid--wrap-height-settle')
+    }, duration + 32)
   }
 
   private syncTextOverflowVisibleClass(): void {
@@ -535,6 +668,21 @@ class GridEngineImpl implements GridEngine {
   }
 
   private syncLayout(): void {
+    this.applyLayoutGeometry()
+    // Spacer size can enable scrollbars; re-measure once so gutter + viewport match.
+    syncScrollbarGutter(this.shell)
+    const afterGutter = measureViewport(this.shell, this.options)
+    if (
+      Math.abs(afterGutter.width - this.viewportWidth) > 0.5 ||
+      Math.abs(afterGutter.height - this.viewportHeight) > 0.5
+    ) {
+      this.applyLayoutGeometry()
+    }
+  }
+
+  /** Measure viewport, resolve columns, and position layers (see layout-sync). */
+  private applyLayoutGeometry(): void {
+    syncScrollbarGutter(this.shell)
     const size = measureViewport(this.shell, this.options)
     const widthChanged =
       size.width !== this.viewportWidth &&
@@ -551,9 +699,9 @@ class GridEngineImpl implements GridEngine {
       )
       if (
         this.plugins.has('column-resize') &&
-        columnsLayoutKey(this.options.columns) !== this.lastColumnLayoutKey
+        columnsWidthsKey(this.options.columns) !== this.lastColumnWidthsKey
       ) {
-        this.lastColumnLayoutKey = columnsLayoutKey(this.options.columns)
+        this.lastColumnWidthsKey = columnsWidthsKey(this.options.columns)
         this.triggerLayoutAnimation('col')
       }
     }
@@ -566,6 +714,15 @@ class GridEngineImpl implements GridEngine {
       rowMetrics: this.rowMetrics,
       viewportWidth: this.viewportWidth,
       viewportHeight: this.viewportHeight,
+    })
+
+    clampScrollerToViewport({
+      scroller: this.shell.scroller,
+      freeze: this.freeze,
+      viewportWidth: this.viewportWidth,
+      viewportHeight: this.viewportHeight,
+      headerHeight: this.effectiveHeaderHeight,
+      totalBodyHeight: this.rowMetrics.getTotalBodyHeight(),
     })
   }
 
@@ -600,6 +757,9 @@ class GridEngineImpl implements GridEngine {
       this.scrollIdleTimer = null
       this.shell.root.classList.remove('vgrid--scroll-active')
       this.paintController.schedulePaint(true)
+      if (this.wrapRowHeights) {
+        this.armWrapHeightSettle()
+      }
     }, 50)
   }
 
@@ -621,6 +781,14 @@ class GridEngineImpl implements GridEngine {
         onCellSelect: (cell) => this.options.onCellSelect?.(cell),
         onHeaderClick: (columnIndex, multi) =>
           this.handleHeaderSort(columnIndex, multi),
+        getScrollClampLimits: () =>
+          scrollClampLimits({
+            freeze: this.freeze,
+            viewportWidth: this.viewportWidth,
+            viewportHeight: this.viewportHeight,
+            headerHeight: this.effectiveHeaderHeight,
+            totalBodyHeight: this.rowMetrics.getTotalBodyHeight(),
+          }),
       },
       () => this.hoverCell,
       (cell) => {

@@ -72,10 +72,12 @@ export function captureCellRects(
   root: HTMLElement,
   selector: string,
   keyFor: (el: HTMLElement) => string | null,
+  include?: (el: HTMLElement) => boolean,
 ): Map<string, CellRectSnapshot> {
   const map = new Map<string, CellRectSnapshot>()
   root.querySelectorAll<HTMLElement>(selector).forEach((el) => {
     if (el.style.display === 'none') return
+    if (include && !include(el)) return
     const key = keyFor(el)
     if (!key) return
     map.set(key, { el, rect: el.getBoundingClientRect() })
@@ -87,12 +89,14 @@ export function playFlip(
   before: Map<string, CellRectSnapshot>,
   durationMs: number,
   onComplete?: () => void,
+  shouldAnimate?: (el: HTMLElement) => boolean,
 ): void {
   const easing = 'cubic-bezier(0.4, 0, 0.2, 1)'
   const pending: Promise<Animation>[] = []
 
   for (const { el, rect: start } of before.values()) {
     if (!el.isConnected) continue
+    if (shouldAnimate && !shouldAnimate(el)) continue
 
     const restore = usesTranslatePosition(el)
       ? materializeBoxPosition(el).restore

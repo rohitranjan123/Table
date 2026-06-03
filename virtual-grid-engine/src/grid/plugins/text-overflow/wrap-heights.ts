@@ -52,41 +52,69 @@ export function computeEffectiveHeaderHeight(
   return maxHeight
 }
 
+function wrapColumnIndicesFor(
+  columns: ResolvedColumn[],
+  cellTextOverflow: CellTextOverflow,
+): number[] {
+  const indices: number[] = []
+  for (let col = 0; col < columns.length; col++) {
+    if (
+      resolveCellTextOverflow(columns[col]!, cellTextOverflow) === 'wrap'
+    ) {
+      indices.push(col)
+    }
+  }
+  return indices
+}
+
+export function estimateWrapRowHeight(
+  input: WrapMetricsInput,
+  row: number,
+  wrapColumnIndices: number[],
+): number {
+  let height = resolveRowHeight(input.rowHeight, row)
+  const minRow = height
+  for (const col of wrapColumnIndices) {
+    const column = input.columns[col]!
+    const cell = input.getCellContent([col, row])
+    const label = String(cell.data)
+    const lines = measureWrappedLineCount(
+      label,
+      contentWidthForColumn(column.width),
+      false,
+    )
+    height = Math.max(height, heightForWrappedLines(lines, minRow))
+  }
+  return height
+}
+
+/** Canvas-estimated body row heights when any column uses wrap. */
+export function buildWrapRowHeightsArray(input: WrapMetricsInput): Float64Array {
+  const { rowCount } = input
+  const heights = new Float64Array(rowCount)
+  const wrapCols = wrapColumnIndicesFor(input.columns, input.cellTextOverflow)
+  for (let row = 0; row < rowCount; row++) {
+    heights[row] = estimateWrapRowHeight(input, row, wrapCols)
+  }
+  return heights
+}
+
 export function createWrapAwareRowMetrics(input: WrapMetricsInput): RowMetrics {
   if (!gridHasCellWrap(input.columns, input.cellTextOverflow)) {
     return createRowMetrics(input.rowCount, input.rowHeight)
   }
+  const heights = buildWrapRowHeightsArray(input)
+  return createRowMetrics(input.rowCount, (row) => heights[row]!)
+}
 
-  const wrapColumnIndices: number[] = []
-  for (let col = 0; col < input.columns.length; col++) {
-    if (
-      resolveCellTextOverflow(
-        input.columns[col]!,
-        input.cellTextOverflow,
-      ) === 'wrap'
-    ) {
-      wrapColumnIndices.push(col)
-    }
-  }
-
-  const rowHeightForIndex = (row: number): number => {
-    let height = resolveRowHeight(input.rowHeight, row)
-    for (const col of wrapColumnIndices) {
-      const column = input.columns[col]!
-      const cell = input.getCellContent([col, row])
-      const label = String(cell.data)
-      const lines = measureWrappedLineCount(
-        label,
-        contentWidthForColumn(column.width),
-        false,
-      )
-      height = Math.max(
-        height,
-        heightForWrappedLines(lines, resolveRowHeight(input.rowHeight, row)),
-      )
-    }
-    return height
-  }
-
-  return createRowMetrics(input.rowCount, rowHeightForIndex)
+export function createRowMetricsFromWrapHeights(
+  rowCount: number,
+  rowHeight: RowHeightSpec,
+  heights: Float64Array,
+): RowMetrics {
+  return createRowMetrics(rowCount, (row) => {
+    const measured = heights[row]
+    if (measured !== undefined && measured > 0) return measured
+    return resolveRowHeight(rowHeight, row)
+  })
 }

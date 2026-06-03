@@ -30,6 +30,11 @@ export interface PaintControllerDeps {
   onScrollActivity: () => void
   getGridId: () => string
   onAfterPaint?: () => void
+  /**
+   * After a full/body paint, bump row metrics from DOM when wrap underestimates.
+   * Returns true when metrics changed and a second paint pass is required.
+   */
+  refineWrapHeightsAfterPaint?: () => boolean
 }
 
 export class PaintController {
@@ -249,6 +254,19 @@ export class PaintController {
       this.deps.renderer.paintBody(bounds, context)
     } else {
       this.deps.renderer.paint(bounds, context)
+    }
+
+    if (this.deps.refineWrapHeightsAfterPaint?.()) {
+      const patched = {
+        ...context,
+        rowMetrics: this.deps.getRowMetrics(),
+        spanContext: this.deps.getOptions().spanContext ?? null,
+      }
+      if (mode === 'body') {
+        this.deps.renderer.paintBody(bounds, patched)
+      } else {
+        this.deps.renderer.paint(bounds, patched)
+      }
     }
 
     this.deps.onAfterPaint?.()
