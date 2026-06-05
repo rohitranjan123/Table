@@ -880,7 +880,7 @@ export default function App() {
           <div className="sticky top-0 left-0 overflow-hidden" style={{ width: '100%', height: '100%', zIndex: 10 }} onMouseDown={handleTableMouseDown} onClick={handleTableClick} onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop} onDragEnd={handleDragEnd}>
              
              {/* --- HEADERS --- */}
-             <div className={`absolute top-0 left-0 right-0 h-[${HEADER_HEIGHT}px] z-20 shadow-md bg-slate-800`}>
+             <div className="absolute top-0 left-0 right-0 z-20 shadow-md bg-slate-800" style={{ height: HEADER_HEIGHT }}>
                <div ref={leftPaneHeaderRef} className={`absolute left-0 top-0 h-full bg-slate-900 z-30 transition-none ${isPinned ? 'shadow-[4px_0_10px_rgba(0,0,0,0.5)] border-r-2 border-blue-500' : ''}`} style={{ display: isPinned ? 'block' : 'none' }}>
                    {Array.from({ length: 10 }).map((_, g) => <div key={`g-${g}`} ref={el => groupLeftRefs.current[g] = el} className="hidden transition-none absolute top-0 h-[24px]" />)}
                    {leftCols.map((_, i) => <div key={i} ref={el => headerLeftRefs.current[i] = el} className="hidden transition-none" style={{ height: '100%' }} />)}
@@ -900,7 +900,7 @@ export default function App() {
              </div>
 
              {/* --- BODY --- */}
-             <div className={`absolute top-[${HEADER_HEIGHT}px] left-0 right-0 bottom-0 z-10 transition-none`}>
+             <div className="absolute left-0 right-0 bottom-0 z-10 transition-none" style={{ top: HEADER_HEIGHT }}>
                <div ref={leftPaneBodyRef} className={`absolute left-0 top-0 h-full bg-white z-30 transition-none ${isPinned ? 'shadow-[4px_0_10px_rgba(0,0,0,0.05)] border-r-2 border-blue-500' : ''}`} style={{ display: isPinned ? 'block' : 'none' }}>
                    <div ref={bodyLeftWrapperRef} className="relative w-full h-full transition-none" style={{ willChange: 'transform' }}>
                        {Array.from({ length: rowPoolSize }).map((_, r) => (
