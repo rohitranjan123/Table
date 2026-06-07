@@ -1,5 +1,5 @@
 import './App.css'
-import HaTableCustomRowHeight10 from './HaTableCustomRowHeight10'
+import { HaTableCustomRowHeight10 } from './demos/custom-row-height'
 
 function App() {
   return <HaTableCustomRowHeight10 />
