@@ -1,4 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback, useTransition, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { Select, MenuItem, Rating, FormControl } from '@mui/material';
 import './HaTableCustomRowHeight10.css';
 
 // --- CONFIGURATION ---
@@ -10,56 +12,90 @@ const TOTAL_ROWS = 10000;
 const TOTAL_COLS = 200;
 const OVERSCAN = 2;
 
-// Initial Dynamic Widths
-const getInitialWidth = (col: number) => {
-    if (col === 0) return 60;
-    if (col >= 6 && col <= 8) return 200;
-    if (col === TOTAL_COLS) return 150;
-    return DEFAULT_COL_WIDTH;
+// --- COLUMN DEFINITIONS (AntD / AG Grid Style) ---
+interface ColumnDef {
+  id: number;
+  headerName: string;
+  width?: number;
+  type: string;
+  group?: string;
+  cellRenderer?: React.FC<ReactCellRendererProps>;
+}
+
+const COLUMN_DEFS: ColumnDef[] = [
+  { id: 0, headerName: '', width: 60, type: 'row-select' },
+  { id: 1, headerName: 'ID', type: 'id' },
+  { id: 2, headerName: 'Avatar', type: 'avatar' },
+  { id: 3, headerName: 'Status', type: 'status' },
+  { id: 4, headerName: 'Verified', type: 'checkbox' },
+  { id: 5, headerName: 'Role', type: 'editable-text' },
+  // { id: 6, headerName: 'Wrap Text', width: 200, type: 'text-wrap' },
+  { id: 6, headerName: 'Ellipsis Text', width: 200, type: 'text-ellipsis' },
+  { id: 7, headerName: 'Clipped Text', width: 200, type: 'text-clip' },
+  { id: 8, headerName: 'Clipped Text', width: 200, type: 'text-clip' },
+  { id: 10, headerName: 'Gold', type: 'editable-text', group: 'Sports Results' },
+  { id: 11, headerName: 'Silver', type: 'editable-text', group: 'Sports Results' },
+  { id: 12, headerName: 'Bronze', type: 'editable-text', group: 'Sports Results' },
+  {
+    id: 13,
+    headerName: 'Department (MUI)',
+    type: 'react-component',
+    cellRenderer: ({ value, onChange }) => (
+      <Select
+        value={value}
+        size="small"
+        variant="standard"
+        onChange={(e) => onChange(e.target.value)}
+        sx={{ width: '100%', height: '100%', fontSize: '13px', px: 1 }}
+        disableUnderline
+      >
+        {['Engineering', 'Marketing', 'Sales', 'Product'].map(opt => (
+          <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+        ))}
+      </Select>
+    )
+  },
+  {
+    id: 14,
+    headerName: 'Rating (MUI)',
+    type: 'react-component',
+    cellRenderer: ({ value, onChange }) => (
+      <Rating
+        value={Number(value)}
+        size="small"
+        onChange={(_, newValue) => onChange(newValue)}
+      />
+    )
+  },
+  { id: 50, headerName: 'Revenue', type: 'editable-text', group: 'Financials' },
+  { id: 51, headerName: 'Profit', type: 'editable-text', group: 'Financials' },
+  { id: 76, headerName: 'Wrap Text', width: 200, type: 'text-wrap' },
+  { id: TOTAL_COLS, headerName: 'Action', width: 150, type: 'action' },
+];
+
+// Fill in the rest of the columns dynamically if they aren't defined
+const getColumnDef = (colIndex: number): ColumnDef => {
+  const existing = COLUMN_DEFS.find(c => c.id === colIndex);
+  if (existing) return existing;
+
+  let type = 'editable-text';
+  if (colIndex % 6 === 0) type = 'chart';
+  else if (colIndex % 4 === 0) type = 'dropdown';
+  else if (colIndex % 5 === 0) type = 'tags';
+
+  return {
+    id: colIndex,
+    headerName: `Metric ${colIndex}`,
+    type,
+    group: colIndex >= 100 && colIndex <= 109 ? 'Detailed Analytics' : undefined
+  };
 };
 
 // --- MOCK DATA GENERATORS ---
-const getColumnType = (colIndex: number) => {
-  if (colIndex === 0) return 'row-select';
-  if (colIndex === 1) return 'id';
-  if (colIndex === TOTAL_COLS) return 'action';
-
-  if (colIndex > 1) {
-    if (colIndex === 6) return 'text-wrap';
-    if (colIndex === 7) return 'text-ellipsis';
-    if (colIndex === 8) return 'text-clip';
-
-    if (colIndex % 6 === 0) return 'chart';
-    if (colIndex % 4 === 0 && colIndex % 6 !== 0) return 'dropdown';
-    if (colIndex % 5 === 0 && colIndex % 4 !== 0 && colIndex % 6 !== 0) return 'tags';
-  }
-
-  if (colIndex === 2) return 'avatar';
-  if (colIndex === 3) return 'status';
-  if (colIndex === 4) return 'checkbox';
-
-  return 'editable-text';
-};
-
-const getColTitle = (colIndex: number) => {
-  if (colIndex === TOTAL_COLS) return 'Action';
-  const titles = ['', 'ID', 'Avatar', 'Status', 'Verified', 'Role', 'Wrap Text', 'Ellipsis Text', 'Clipped Text'];
-  if (titles[colIndex] !== undefined) return titles[colIndex];
-  if (colIndex === 10) return 'Gold';
-  if (colIndex === 11) return 'Silver';
-  if (colIndex === 12) return 'Bronze';
-  if (colIndex === 50) return 'Revenue';
-  if (colIndex === 51) return 'Profit';
-  return `Metric ${colIndex}`;
-};
-
-const getColGroup = (colId: number) => {
-  if (colId >= 10 && colId <= 12) return 'Sports Results';
-  if (colId >= 50 && colId <= 53) return 'Financials';
-  if (colId >= 80 && colId <= 81) return 'Metadata';
-  if (colId >= 100 && colId <= 109) return 'Detailed Analytics';
-  return null;
-};
+const getColumnType = (colIndex: number) => getColumnDef(colIndex).type;
+const getColTitle = (colIndex: number) => getColumnDef(colIndex).headerName;
+const getColGroup = (colId: number) => getColumnDef(colId).group || null;
+const getInitialWidth = (col: number) => getColumnDef(col).width || DEFAULT_COL_WIDTH;
 
 const getCellData = (
   rowIndex: number,
@@ -77,8 +113,10 @@ const getCellData = (
   if (colIndex === 2) return `https://i.pravatar.cc/32?u=${rowIndex}`;
   if (colIndex === 3) return ['Active', 'Pending', 'Suspended', 'Banned'][rowIndex % 4];
   if (colIndex === 4) return rowIndex % 3 === 0;
+  if (colIndex === 13) return ['Engineering', 'Marketing', 'Sales', 'Product'][rowIndex % 4];
+  if (colIndex === 14) return (rowIndex % 5) + 1;
 
-  if (colIndex >= 6 && colIndex <= 8) {
+  if (colIndex === 76 || (colIndex >= 6 && colIndex <= 8)) {
       const base = `Detailed analysis and extended reporting metrics for record entry ${rowIndex} mapped precisely at coordinate bounds ${colIndex}.`;
       const repeat = (rowIndex % 5) + 1;
       return new Array(repeat).fill(base).join(' ') + (rowIndex % 3 === 0 ? ' This adds even more vertical depth to test the scroll stability.' : '');
@@ -99,46 +137,112 @@ const STATUS_CLASS: Record<string, string> = {
   Banned: 'cr10-cell-status--banned',
 };
 
+// --- REACT COMPONENT REGISTRY (FOR ANY UI LIBRARY) ---
+type ReactCellRendererProps = {
+  value: any;
+  rowId: number;
+  colId: number;
+  onChange: (value: any) => void;
+};
+
+// --- UNIFIED COMPONENT REGISTRY (AG GRID STYLE) ---
+const CELL_TEMPLATES: Record<string, {
+    render: (value: unknown) => string;
+    Editor?: React.FC<{ value: string; onCommit: (val: string) => void }>;
+}> = {
+  'row-select': {
+    render: (val) => `<div class="cr10-cell-checkbox-wrap"><input type="checkbox" class="cr10-cell-checkbox" ${val ? 'checked' : ''} /></div>`,
+  },
+  'react-component': {
+    render: () => `<div class="cr10-react-placeholder"></div>`,
+  },
+  'id': {
+    render: (val) => `<span>${val}</span>`,
+  },
+  'action': {
+    render: () => `<div class="cr10-cell-actions"><span class="cr10-cell-action-btn" data-action="preview">👁️</span><span class="cr10-cell-action-btn" data-action="save">💾</span><span class="cr10-cell-action-btn cr10-cell-action-btn--muted" data-action="delete">🗑️</span></div>`,
+  },
+  'avatar': {
+    render: (val) => `<img src="${val}" alt="avatar" class="cr10-cell-avatar" />`,
+  },
+  'status': {
+    render: (val) => {
+        const statusClass = STATUS_CLASS[String(val)] || 'cr10-cell-status--default';
+        return `<span class="cr10-cell-status ${statusClass}">${val}</span>`;
+    },
+  },
+  'checkbox': {
+    render: (val) => `<input type="checkbox" class="cr10-cell-checkbox cr10-cell-checkbox--blue" ${val ? 'checked' : ''} />`,
+  },
+  'tags': {
+    render: (val) => `<div class="cr10-cell-tags">${Array.isArray(val) ? val.map(t => `<span class="cr10-cell-tag">${t}</span>`).join('') : ''}</div>`,
+  },
+  'chart': {
+    render: (val) => `<svg width="100%" height="24px" viewBox="0 0 90 24" class="cr10-cell-chart"><polyline class="cr10-cell-chart-line" points="${Array.isArray(val) ? val.map((v, i) => `${i * 10},${24 - v}`).join(' ') : ''}" /></svg>`,
+  },
+  'text-wrap': {
+    render: (val) => `<div class="cr10-cell-text-wrap">${val}</div>`,
+  },
+  'text-ellipsis': {
+    render: (val) => `<div class="cr10-cell-text-ellipsis">${val}</div>`,
+  },
+  'text-clip': {
+    render: (val) => `<div class="cr10-cell-text-clip">${val}</div>`,
+  },
+  'editable-text': {
+    render: (val) => `<div class="cr10-cell-input-wrap"><input type="text" class="cr10-cell-input" value="${val}" readonly /></div>`,
+    Editor: ({ value, onCommit }) => {
+        const inputRef = useRef<HTMLInputElement>(null);
+        useEffect(() => { inputRef.current?.focus(); }, []);
+        return (
+            <div className="cr10-cell-input-wrap">
+                <input
+                    ref={inputRef}
+                    className="cr10-cell-input"
+                    defaultValue={value}
+                    onBlur={(e) => onCommit(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && onCommit(e.currentTarget.value)}
+                    style={{ pointerEvents: 'auto' }}
+                />
+            </div>
+        );
+    },
+  },
+  'dropdown': {
+    render: (val) => `<div class="cr10-cell-dropdown-wrap"><div class="cr10-cell-dropdown">${val}</div><span class="cr10-cell-dropdown-arrow">▼</span></div>`,
+    Editor: ({ value, onCommit }) => {
+        const options = ['Admin', 'Editor', 'Viewer'];
+        return (
+            <>
+                <div className="cr10-custom-dropdown-backdrop" onMouseDown={() => onCommit(value)} />
+                <div className="cr10-cell-dropdown-wrap">
+                    <div className="cr10-cell-dropdown cr10-cell-dropdown--active" style={{ pointerEvents: 'auto' }}>{value}</div>
+                    <span className="cr10-cell-dropdown-arrow">▼</span>
+                    <div className="cr10-custom-dropdown-menu">
+                        {options.map(opt => (
+                            <div
+                                key={opt}
+                                className={`cr10-custom-dropdown-item ${opt === value ? 'cr10-custom-dropdown-item--active' : ''}`}
+                                onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); onCommit(opt); }}
+                            >
+                                {opt}
+                                {opt === value && <span className="cr10-custom-dropdown-check">✓</span>}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </>
+        );
+    },
+  },
+};
+
 // --- AG GRID STRATEGY: VANILLA HTML STRING RENDERERS ---
-const generateCellHTML = (type: string, value: unknown) => {
-  if (type === 'row-select') {
-    return `<div class="cr10-cell-checkbox-wrap"><input type="checkbox" class="cr10-cell-checkbox" ${value ? 'checked' : ''} /></div>`;
-  }
-  if (type === 'action') {
-    return `<div class="cr10-cell-actions"><span class="cr10-cell-action-btn" data-action="preview">👁️</span><span class="cr10-cell-action-btn" data-action="save">💾</span><span class="cr10-cell-action-btn cr10-cell-action-btn--muted" data-action="delete">🗑️</span></div>`;
-  }
-  if (type === 'avatar') {
-    return `<img src="${value}" alt="avatar" class="cr10-cell-avatar" />`;
-  }
-  if (type === 'status') {
-    const statusClass = STATUS_CLASS[String(value)] || 'cr10-cell-status--default';
-    return `<span class="cr10-cell-status ${statusClass}">${value}</span>`;
-  }
-  if (type === 'checkbox') {
-    return `<input type="checkbox" class="cr10-cell-checkbox cr10-cell-checkbox--blue" ${value ? 'checked' : ''} />`;
-  }
-  if (type === 'tags' && Array.isArray(value)) {
-    return `<div class="cr10-cell-tags">${value.map(t => `<span class="cr10-cell-tag">${t}</span>`).join('')}</div>`;
-  }
-  if (type === 'chart' && Array.isArray(value)) {
-    return `<svg width="100%" height="24px" viewBox="0 0 90 24" class="cr10-cell-chart"><polyline class="cr10-cell-chart-line" points="${value.map((val, i) => `${i * 10},${24 - val}`).join(' ')}" /></svg>`;
-  }
-  if (type === 'dropdown') {
-    return `<div class="cr10-cell-dropdown-wrap"><select class="cr10-cell-dropdown"><option>${value}</option></select><span class="cr10-cell-dropdown-arrow">▼</span></div>`;
-  }
-  if (type === 'text-wrap') {
-    return `<div class="cr10-cell-text-wrap">${value}</div>`;
-  }
-  if (type === 'text-ellipsis') {
-    return `<div class="cr10-cell-text-ellipsis">${value}</div>`;
-  }
-  if (type === 'text-clip') {
-    return `<div class="cr10-cell-text-clip">${value}</div>`;
-  }
-  if (type === 'editable-text') {
-    return `<div class="cr10-cell-input-wrap"><input type="text" class="cr10-cell-input" value="${value}" readonly /></div>`;
-  }
-  return `<span class="cr10-cell-fallback">${value}</span>`;
+const generateCellHTML = (colId: number, value: unknown) => {
+  const def = getColumnDef(colId);
+  const effectiveType = def.cellRenderer ? 'react-component' : def.type;
+  const template = CELL_TEMPLATES[effectiveType] || { render: (val: unknown) => `<span class="cr10-cell-fallback">${val}</span>` };
+  return template.render(value);
 };
 
 // DOM CACHE HELPER
@@ -174,35 +278,15 @@ const EditorInput = ({
   selectedRowsRef: React.RefObject<Set<number>>;
   handleEditorCommit: (value: string) => void;
 }) => {
-    const inputRef = useRef<HTMLInputElement & HTMLSelectElement>(null);
-    useEffect(() => { if (inputRef.current) inputRef.current.focus({ preventScroll: true }); }, []);
     const rawData = getData(activeCell.rowId, activeCell.colIndex, editsRef, selectedRowsRef);
     const safeStringValue = typeof rawData === 'object' && rawData !== null ? JSON.stringify(rawData) : String(rawData || '');
 
-    if (activeCell.type === 'dropdown') {
-        return (
-            <select
-              ref={inputRef}
-              onChange={(e) => handleEditorCommit(e.target.value)}
-              onBlur={(e) => handleEditorCommit(e.target.value)}
-              defaultValue={safeStringValue}
-              className="cr10-editor-input cr10-editor-input--select"
-            >
-                <option value="Admin">Admin</option>
-                <option value="Editor">Editor</option>
-                <option value="Viewer">Viewer</option>
-            </select>
-        );
+    const template = CELL_TEMPLATES[activeCell.type];
+    if (template && template.Editor) {
+        const SpecificEditor = template.Editor;
+        return <SpecificEditor value={safeStringValue} onCommit={handleEditorCommit} />;
     }
-    return (
-      <input
-        ref={inputRef}
-        onBlur={(e) => handleEditorCommit(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-        defaultValue={safeStringValue}
-        className="cr10-editor-input"
-      />
-    );
+    return <div className="cr10-cell-fallback">{safeStringValue}</div>;
 };
 
 const ColumnFilterPopup = ({
@@ -432,6 +516,8 @@ export default function HaTableCustomRowHeight10() {
   const [activeFilter, setActiveFilter] = useState<{ colId: number; rect: DOMRect } | null>(null);
   const [isPending, startTransition] = useTransition();
   const [, setRenderTick] = useState(0);
+  const [portalsTick, setPortalsTick] = useState(0);
+  const portalRegistryRef = useRef<Map<HTMLDivElement, { type: string, value: any, rowId: number, colId: number }>>(new Map());
 
   const scrollEnforcerRef = useRef<HTMLDivElement>(null);
   const headerCenterWrapperRef = useRef<HTMLDivElement>(null);
@@ -489,39 +575,6 @@ export default function HaTableCustomRowHeight10() {
 
   const [isPinned, setIsPinned] = useState(false);
 
-  const wrapCols = useMemo(() => {
-    return colOrder.filter(c => getColumnType(c) === 'text-wrap');
-  }, [colOrder]);
-
-  const measuredRowsRef = useRef(new Uint8Array(TOTAL_ROWS));
-  const measurerRef = useRef<HTMLDivElement>(null);
-
-  const measureRowHeight = useCallback((rowId: number) => {
-    if (measuredRowsRef.current[rowId]) return rowHeightsRef.current[rowId];
-
-    let maxH = DEFAULT_ROW_HEIGHT;
-    const measurer = measurerRef.current;
-    if (!measurer) return maxH;
-
-    wrapCols.forEach(colId => {
-      const data = getCellData(rowId, colId, editsRef, selectedRowsRef);
-      const colWidth = colWidthsRef.current[colId] || getInitialWidth(colId);
-
-      measurer.style.width = `${colWidth}px`;
-      measurer.innerHTML = generateCellHTML('text-wrap', data);
-
-      const h = Math.max(DEFAULT_ROW_HEIGHT, measurer.scrollHeight);
-      if (h > maxH) maxH = h;
-    });
-
-    measuredRowsRef.current[rowId] = 1;
-    if (Math.abs(maxH - rowHeightsRef.current[rowId]) > 1) {
-      rowHeightsRef.current[rowId] = maxH;
-      requestRowRecalcRef.current = true;
-    }
-    return maxH;
-  }, [wrapCols]);
-
   const { visibleColOrder } = useMemo(() => {
     const counts: Record<string, number> = {};
     colOrder.forEach(c => { const g = getColGroup(c); if (g) counts[g] = (counts[g] || 0) + 1; });
@@ -536,6 +589,42 @@ export default function HaTableCustomRowHeight10() {
     });
     return { visibleColOrder: visible };
   }, [colOrder, collapsedGroupsTick]);
+
+  const heightSensitiveCols = useMemo(() => {
+    return visibleColOrder.filter(c => {
+      const type = getColumnType(c);
+      return type === 'text-wrap' || type === 'react-component';
+    });
+  }, [visibleColOrder]);
+
+  const measuredRowsRef = useRef(new Uint8Array(TOTAL_ROWS));
+  const measurerRef = useRef<HTMLDivElement>(null);
+
+  const measureRowHeight = useCallback((rowId: number) => {
+    if (measuredRowsRef.current[rowId]) return rowHeightsRef.current[rowId];
+
+    let maxH = DEFAULT_ROW_HEIGHT;
+    const measurer = measurerRef.current;
+    if (!measurer) return maxH;
+
+    heightSensitiveCols.forEach(colId => {
+      const data = getCellData(rowId, colId, editsRef, selectedRowsRef);
+      const colWidth = colWidthsRef.current[colId] || getInitialWidth(colId);
+
+      measurer.style.width = `${colWidth}px`;
+      measurer.innerHTML = generateCellHTML(colId, data);
+
+      const h = Math.max(DEFAULT_ROW_HEIGHT, measurer.scrollHeight);
+      if (h > maxH) maxH = h;
+    });
+
+    measuredRowsRef.current[rowId] = 1;
+    if (Math.abs(maxH - rowHeightsRef.current[rowId]) > 1) {
+      rowHeightsRef.current[rowId] = maxH;
+      requestRowRecalcRef.current = true;
+    }
+    return maxH;
+  }, [heightSensitiveCols]);
 
   const { leftCols, rightCols, centerCols } = useMemo(() => {
     if (isPinned) {
@@ -630,16 +719,28 @@ export default function HaTableCustomRowHeight10() {
   const populateDOMCell = useCallback((cellNode: HTMLDivElement, actualRowId: number, actualColId: number) => {
       const type = getColumnType(actualColId);
       const isSel = selectedRowsRef.current.has(actualRowId);
+      const val = getCellData(actualRowId, actualColId, editsRef, selectedRowsRef);
       const dataCoord = type === 'row-select' ? `${actualRowId}-${actualColId}-${isSel}` : `${actualRowId}-${actualColId}`;
+
+      const colDef = getColumnDef(actualColId);
+      if (colDef.cellRenderer) {
+          const prev = portalRegistryRef.current.get(cellNode);
+          if (!prev || prev.rowId !== actualRowId || prev.colId !== actualColId || prev.value !== val) {
+              portalRegistryRef.current.set(cellNode, { type, value: val, rowId: actualRowId, colId: actualColId });
+          }
+      } else {
+          portalRegistryRef.current.delete(cellNode);
+      }
+
       if (cellNode.dataset.coord === dataCoord) return;
 
       cellNode.dataset.coord = dataCoord;
       cellNode.dataset.row = String(actualRowId);
       cellNode.dataset.col = String(actualColId);
-      cellNode.innerHTML = generateCellHTML(type, getCellData(actualRowId, actualColId, editsRef, selectedRowsRef));
+      cellNode.innerHTML = generateCellHTML(actualColId, val);
 
       const isWrap = type === 'text-wrap';
-      const isInteractive = ['editable-text', 'dropdown', 'checkbox', 'row-select'].includes(type);
+      const isInteractive = ['checkbox', 'row-select'].includes(type);
       const cellClasses = [
         'ag-cell',
         isWrap ? '' : 'ag-cell--nowrap',
@@ -650,16 +751,7 @@ export default function HaTableCustomRowHeight10() {
       setClass(cellNode, cellClasses);
 
       if (isWrap) {
-          cellNode.style.height = 'auto';
-          const requiredHeight = Math.max(DEFAULT_ROW_HEIGHT, cellNode.scrollHeight);
           cellNode.style.height = '100%';
-
-          measuredRowsRef.current[actualRowId] = 1;
-
-          if (Math.abs(requiredHeight - rowHeightsRef.current[actualRowId]) > 1) {
-              rowHeightsRef.current[actualRowId] = requiredHeight;
-              requestRowRecalcRef.current = true;
-          }
       }
   }, [measureRowHeight]);
 
@@ -861,6 +953,8 @@ export default function HaTableCustomRowHeight10() {
             }
         });
     }
+
+    setPortalsTick(t => t + 1);
   }, [rowPoolSize, colPoolSize, centerCols, leftCols, rightCols, populateDOMCell, populateDOMHeader, recalcRowLayout, updateShellDimensions]);
 
   useEffect(() => {
@@ -1092,6 +1186,14 @@ export default function HaTableCustomRowHeight10() {
               return;
           }
           if (type === 'editable-text' || type === 'dropdown') {
+              const isComponentClick = target.classList.contains('cr10-cell-input') ||
+                                       target.classList.contains('cr10-cell-dropdown') ||
+                                       target.classList.contains('cr10-cell-dropdown-arrow') ||
+                                       target.closest('.cr10-cell-input-wrap') ||
+                                       target.closest('.cr10-cell-dropdown-wrap');
+
+              if (!isComponentClick) return;
+
               editorOpenedAtRef.current = Date.now();
               setActiveCell({ rowId, colIndex: colId, type, rect: cellNode.getBoundingClientRect() });
           }
@@ -1128,22 +1230,32 @@ export default function HaTableCustomRowHeight10() {
       }
   }, [redrawVanillaDOM, executeDataPipeline]);
 
-  const handleEditorCommit = (value: string) => {
-      if (!activeCell) return;
-      editsRef.current[`${activeCell.rowId}-${activeCell.colIndex}`] = value;
-      measuredRowsRef.current[activeCell.rowId] = 0; 
+  const handleDataChange = useCallback((rowId: number, colId: number, value: any) => {
+      editsRef.current[`${rowId}-${colId}`] = value;
+      
+      // Only reset measurement if the changed column could affect height
+      if (heightSensitiveCols.includes(colId)) {
+        measuredRowsRef.current[rowId] = 0;
+      }
+
       [cellCenterRefs.current, cellLeftRefs.current, cellRightRefs.current].forEach(pane => {
-          const nodeKey = Object.keys(pane).find(
-            k => pane[k]?.dataset?.coord === `${activeCell.rowId}-${activeCell.colIndex}`,
-          );
-          if (nodeKey && pane[nodeKey]) pane[nodeKey].dataset.coord = 'INVALID';
+          Object.keys(pane).forEach(k => {
+              const node = pane[k];
+              if (node && node.dataset.coord?.startsWith(`${rowId}-${colId}`)) {
+                  node.dataset.coord = 'INVALID';
+              }
+          });
       });
-      const committedCol = activeCell.colIndex;
-      setActiveCell(null);
       if (scrollContainerRef.current) {
         redrawVanillaDOM(scrollContainerRef.current.scrollTop, scrollContainerRef.current.scrollLeft);
       }
-      if (sortRulesRef.current.some(r => r.colIndex === committedCol)) executeDataPipeline();
+      if (sortRulesRef.current.some(r => r.colIndex === colId)) executeDataPipeline();
+  }, [redrawVanillaDOM, executeDataPipeline, heightSensitiveCols]);
+
+  const handleEditorCommit = (value: string) => {
+      if (!activeCell) return;
+      handleDataChange(activeCell.rowId, activeCell.colIndex, value);
+      setActiveCell(null);
   };
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -1374,6 +1486,26 @@ export default function HaTableCustomRowHeight10() {
               onChange={(p, sz) => applyPagination(p, sz, fullDataMapRef.current)}
           />
         </div>
+
+        {/* --- DYNAMIC REACT PORTALS --- */}
+        <div style={{ display: 'none' }}>{portalsTick}</div>
+        {Array.from(portalRegistryRef.current.entries()).map(([node, info]) => {
+            const placeholder = node.querySelector('.cr10-react-placeholder');
+            if (!placeholder) return null;
+            
+            const Renderer = getColumnDef(info.colId).cellRenderer;
+            if (!Renderer) return null;
+
+            return createPortal(
+                <Renderer
+                    value={info.value}
+                    rowId={info.rowId}
+                    colId={info.colId}
+                    onChange={(val) => handleDataChange(info.rowId, info.colId, val)}
+                />,
+                placeholder
+            );
+        })}
       </div>
     </div>
   );
