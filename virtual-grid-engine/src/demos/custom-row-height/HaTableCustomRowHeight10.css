@@ -1537,3 +1537,64 @@
     padding-top: 4px !important;
     padding-bottom: 4px !important;
 }
+
+/* Allow React cells to show floating menus and components outside their bounds */
+.ag-cell--react {
+    overflow: visible !important;
+    z-index: 1; /* Slight elevation for React cells */
+}
+
+/* Ensure the portal placeholders don't clip their content */
+.cr10-react-placeholder {
+    overflow: visible;
+}
+
+/* MUI Menu overrides when disablePortal is used inside a cell */
+.MuiPaper-root {
+    box-shadow: var(--cr10-shadow-lg) !important;
+}
+
+/* Ensure rows don't clip floating menus from React cells */
+.cr10-row {
+    overflow: visible !important;
+}
+
+/* Give React cells higher stacking priority so menus appear above subsequent rows */
+.ag-cell--react:focus-within {
+    z-index: 100;
+}
+
+/* --- Generic Agnostic Portal Support --- */
+
+/* 1. Global Overflow Liberation */
+.cr10-row,
+.ag-cell {
+    overflow: visible !important;
+}
+
+/* 2. Safe Internal Clipping for Standard Cells */
+.cr10-cell-inner {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+/* 3. Auto-elevation for Active Rows */
+.cr10-row:focus-within,
+.cr10-row:active {
+    z-index: 100 !important;
+}
+
+/* 4. Column Order Stacking (Optional but helps side-by-side overlap) */
+.ag-cell {
+    background-color: var(--cr10-white); /* Ensure cells mask neighbors if they overlap */
+}
+
+/* 5. Pane boundaries still act as global clipping points */
+.cr10-pane {
+    overflow: hidden;
+}

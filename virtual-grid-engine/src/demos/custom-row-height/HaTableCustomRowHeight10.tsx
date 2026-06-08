@@ -46,7 +46,7 @@ const COLUMN_DEFS: ColumnDef[] = [
         size="small"
         variant="standard"
         onChange={(e) => onChange(e.target.value)}
-        sx={{ width: '100%', height: '100%', fontSize: '13px', px: 1 }}
+        sx={{ width: '100%', fontSize: '13px', px: 1 }}
         disableUnderline
       >
         {['Engineering', 'Marketing', 'Sales', 'Product'].map(opt => (
@@ -151,46 +151,46 @@ const CELL_TEMPLATES: Record<string, {
     Editor?: React.FC<{ value: string; onCommit: (val: string) => void }>;
 }> = {
   'row-select': {
-    render: (val) => `<div class="cr10-cell-checkbox-wrap"><input type="checkbox" class="cr10-cell-checkbox" ${val ? 'checked' : ''} /></div>`,
+    render: (val) => `<div class="cr10-cell-inner"><div class="cr10-cell-checkbox-wrap"><input type="checkbox" class="cr10-cell-checkbox" ${val ? 'checked' : ''} /></div></div>`,
   },
   'react-component': {
     render: () => `<div class="cr10-react-placeholder"></div>`,
   },
   'id': {
-    render: (val) => `<span>${val}</span>`,
+    render: (val) => `<div class="cr10-cell-inner"><span>${val}</span></div>`,
   },
   'action': {
-    render: () => `<div class="cr10-cell-actions"><span class="cr10-cell-action-btn" data-action="preview">👁️</span><span class="cr10-cell-action-btn" data-action="save">💾</span><span class="cr10-cell-action-btn cr10-cell-action-btn--muted" data-action="delete">🗑️</span></div>`,
+    render: () => `<div class="cr10-cell-inner"><div class="cr10-cell-actions"><span class="cr10-cell-action-btn" data-action="preview">👁️</span><span class="cr10-cell-action-btn" data-action="save">💾</span><span class="cr10-cell-action-btn cr10-cell-action-btn--muted" data-action="delete">🗑️</span></div></div>`,
   },
   'avatar': {
-    render: (val) => `<img src="${val}" alt="avatar" class="cr10-cell-avatar" />`,
+    render: (val) => `<div class="cr10-cell-inner"><img src="${val}" alt="avatar" class="cr10-cell-avatar" /></div>`,
   },
   'status': {
     render: (val) => {
         const statusClass = STATUS_CLASS[String(val)] || 'cr10-cell-status--default';
-        return `<span class="cr10-cell-status ${statusClass}">${val}</span>`;
+        return `<div class="cr10-cell-inner"><span class="cr10-cell-status ${statusClass}">${val}</span></div>`;
     },
   },
   'checkbox': {
-    render: (val) => `<input type="checkbox" class="cr10-cell-checkbox cr10-cell-checkbox--blue" ${val ? 'checked' : ''} />`,
+    render: (val) => `<div class="cr10-cell-inner"><input type="checkbox" class="cr10-cell-checkbox cr10-cell-checkbox--blue" ${val ? 'checked' : ''} /></div>`,
   },
   'tags': {
-    render: (val) => `<div class="cr10-cell-tags">${Array.isArray(val) ? val.map(t => `<span class="cr10-cell-tag">${t}</span>`).join('') : ''}</div>`,
+    render: (val) => `<div class="cr10-cell-inner"><div class="cr10-cell-tags">${Array.isArray(val) ? val.map(t => `<span class="cr10-cell-tag">${t}</span>`).join('') : ''}</div></div>`,
   },
   'chart': {
-    render: (val) => `<svg width="100%" height="24px" viewBox="0 0 90 24" class="cr10-cell-chart"><polyline class="cr10-cell-chart-line" points="${Array.isArray(val) ? val.map((v, i) => `${i * 10},${24 - v}`).join(' ') : ''}" /></svg>`,
+    render: (val) => `<div class="cr10-cell-inner"><svg width="100%" height="24px" viewBox="0 0 90 24" class="cr10-cell-chart"><polyline class="cr10-cell-chart-line" points="${Array.isArray(val) ? val.map((v, i) => `${i * 10},${24 - v}`).join(' ') : ''}" /></svg></div>`,
   },
   'text-wrap': {
-    render: (val) => `<div class="cr10-cell-text-wrap">${val}</div>`,
+    render: (val) => `<div class="cr10-cell-inner"><div class="cr10-cell-text-wrap">${val}</div></div>`,
   },
   'text-ellipsis': {
-    render: (val) => `<div class="cr10-cell-text-ellipsis">${val}</div>`,
+    render: (val) => `<div class="cr10-cell-inner"><div class="cr10-cell-text-ellipsis">${val}</div></div>`,
   },
   'text-clip': {
-    render: (val) => `<div class="cr10-cell-text-clip">${val}</div>`,
+    render: (val) => `<div class="cr10-cell-inner"><div class="cr10-cell-text-clip">${val}</div></div>`,
   },
   'editable-text': {
-    render: (val) => `<div class="cr10-cell-input-wrap"><input type="text" class="cr10-cell-input" value="${val}" readonly /></div>`,
+    render: (val) => `<div class="cr10-cell-inner"><div class="cr10-cell-input-wrap"><input type="text" class="cr10-cell-input" value="${val}" readonly /></div></div>`,
     Editor: ({ value, onCommit }) => {
         const inputRef = useRef<HTMLInputElement>(null);
         useEffect(() => { inputRef.current?.focus(); }, []);
@@ -724,11 +724,13 @@ export default function HaTableCustomRowHeight10() {
 
       const colDef = getColumnDef(actualColId);
       if (colDef.cellRenderer) {
+          cellNode.classList.add('ag-cell--react');
           const prev = portalRegistryRef.current.get(cellNode);
           if (!prev || prev.rowId !== actualRowId || prev.colId !== actualColId || prev.value !== val) {
               portalRegistryRef.current.set(cellNode, { type, value: val, rowId: actualRowId, colId: actualColId });
           }
       } else {
+          cellNode.classList.remove('ag-cell--react');
           portalRegistryRef.current.delete(cellNode);
       }
 
