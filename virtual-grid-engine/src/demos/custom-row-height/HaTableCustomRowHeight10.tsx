@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useCallback, useTransition, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Select, MenuItem, Rating, FormControl } from '@mui/material';
+import { Select, MenuItem, Rating } from '@mui/material';
 import './HaTableCustomRowHeight10.css';
 
 // --- CONFIGURATION ---
@@ -11,6 +11,7 @@ const MIN_COL_WIDTH = 50;
 const TOTAL_ROWS = 10000;
 const TOTAL_COLS = 200;
 const OVERSCAN = 2;
+const SHOW_TEXT_IN_SHIMMER = false;
 
 // --- COLUMN DEFINITIONS (AntD / AG Grid Style) ---
 interface ColumnDef {
@@ -25,22 +26,43 @@ interface ColumnDef {
 const COLUMN_DEFS: ColumnDef[] = [
   { id: 0, headerName: '', width: 60, type: 'row-select' },
   { id: 1, headerName: 'ID', type: 'id' },
-  { id: 2, headerName: 'Avatar', type: 'avatar' },
-  { id: 3, headerName: 'Status', type: 'status' },
-  { id: 4, headerName: 'Verified', type: 'checkbox' },
-  { id: 5, headerName: 'Role', type: 'editable-text' },
+  // { id: 2, headerName: 'Avatar', type: 'avatar' },
+  // { id: 3, headerName: 'Status', type: 'status' },
+  // { id: 4, headerName: 'Verified', type: 'checkbox' },
+  // { id: 5, headerName: 'Role', type: 'editable-text' },
   // { id: 6, headerName: 'Wrap Text', width: 200, type: 'text-wrap' },
-  { id: 6, headerName: 'Ellipsis Text', width: 200, type: 'text-ellipsis' },
-  { id: 7, headerName: 'Clipped Text', width: 200, type: 'text-clip' },
-  { id: 8, headerName: 'Clipped Text', width: 200, type: 'text-clip' },
-  { id: 10, headerName: 'Gold', type: 'editable-text', group: 'Sports Results' },
-  { id: 11, headerName: 'Silver', type: 'editable-text', group: 'Sports Results' },
-  { id: 12, headerName: 'Bronze', type: 'editable-text', group: 'Sports Results' },
+  // { id: 6, headerName: 'Ellipsis Text', width: 200, type: 'text-ellipsis' },
+  // { id: 7, headerName: 'Clipped Text', width: 200, type: 'text-clip' },
+  // { id: 8, headerName: 'Clipped Text', width: 200, type: 'text-clip' },
+  // { id: 10, headerName: 'Gold', type: 'editable-text', group: 'Sports Results' },
+  // { id: 11, headerName: 'Silver', type: 'editable-text', group: 'Sports Results' },
+  // { id: 12, headerName: 'Bronze', type: 'editable-text', group: 'Sports Results' },
+  ...[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(id => (
+    {
+      id,
+      headerName: `Department (MUI) ${id}`,
+      type: 'react-component',
+      cellRenderer: ({ value, onChange }: ReactCellRendererProps) => (
+        <Select
+          value={value}
+          size="small"
+          variant="standard"
+          onChange={(e) => onChange(e.target.value)}
+          sx={{ width: '100%', fontSize: '13px', px: 1 }}
+          disableUnderline
+        >
+          {['Engineering', 'Marketing', 'Sales', 'Product'].map(opt => (
+            <MenuItem key={opt} value={opt}>{opt}</MenuItem>
+          ))}
+        </Select>
+      )
+    }
+  )),
   {
     id: 13,
     headerName: 'Department (MUI)',
     type: 'react-component',
-    cellRenderer: ({ value, onChange }) => (
+    cellRenderer: ({ value, onChange }: ReactCellRendererProps) => (
       <Select
         value={value}
         size="small"
@@ -59,7 +81,7 @@ const COLUMN_DEFS: ColumnDef[] = [
     id: 14,
     headerName: 'Rating (MUI)',
     type: 'react-component',
-    cellRenderer: ({ value, onChange }) => (
+    cellRenderer: ({ value, onChange }: ReactCellRendererProps) => (
       <Rating
         value={Number(value)}
         size="small"
@@ -69,7 +91,7 @@ const COLUMN_DEFS: ColumnDef[] = [
   },
   { id: 50, headerName: 'Revenue', type: 'editable-text', group: 'Financials' },
   { id: 51, headerName: 'Profit', type: 'editable-text', group: 'Financials' },
-  { id: 76, headerName: 'Wrap Text', width: 200, type: 'text-wrap' },
+  // { id: 76, headerName: 'Wrap Text', width: 200, type: 'text-wrap' },
   { id: TOTAL_COLS, headerName: 'Action', width: 150, type: 'action' },
 ];
 
@@ -110,9 +132,20 @@ const getCellData = (
   if (edits && edits.current && edits.current[editKey] !== undefined) return edits.current[editKey];
 
   if (colIndex === 1) return rowIndex;
-  if (colIndex === 2) return `https://i.pravatar.cc/32?u=${rowIndex}`;
-  if (colIndex === 3) return ['Active', 'Pending', 'Suspended', 'Banned'][rowIndex % 4];
-  if (colIndex === 4) return rowIndex % 3 === 0;
+  // if (colIndex === 2) return `https://i.pravatar.cc/32?u=${rowIndex}`;
+  // if (colIndex === 3) return ['Active', 'Pending', 'Suspended', 'Banned'][rowIndex % 4];
+  // if (colIndex === 4) return rowIndex % 3 === 0;
+  if (colIndex === 2) return ['Engineering', 'Marketing', 'Sales', 'Product'][rowIndex % 4];
+  if (colIndex === 3) return ['Engineering', 'Marketing', 'Sales', 'Product'][rowIndex % 4];
+  if (colIndex === 4) return ['Engineering', 'Marketing', 'Sales', 'Product'][rowIndex % 4];
+  if (colIndex === 5) return ['Engineering', 'Marketing', 'Sales', 'Product'][rowIndex % 4];
+  if (colIndex === 6) return ['Engineering', 'Marketing', 'Sales', 'Product'][rowIndex % 4];
+  if (colIndex === 7) return ['Engineering', 'Marketing', 'Sales', 'Product'][rowIndex % 4];
+  if (colIndex === 8) return ['Engineering', 'Marketing', 'Sales', 'Product'][rowIndex % 4];
+  if (colIndex === 9) return ['Engineering', 'Marketing', 'Sales', 'Product'][rowIndex % 4];
+  if (colIndex === 10) return ['Engineering', 'Marketing', 'Sales', 'Product'][rowIndex % 4];
+  if (colIndex === 11) return ['Engineering', 'Marketing', 'Sales', 'Product'][rowIndex % 4];
+  if (colIndex === 12) return ['Engineering', 'Marketing', 'Sales', 'Product'][rowIndex % 4];
   if (colIndex === 13) return ['Engineering', 'Marketing', 'Sales', 'Product'][rowIndex % 4];
   if (colIndex === 14) return (rowIndex % 5) + 1;
 
@@ -507,6 +540,41 @@ const PaginationUI = ({
 };
 
 
+// --- PORTAL CELL WRAPPER (SYNCHRONIZED SETTLING) ---
+const PortalCellWrapper = ({ 
+    info, 
+    node, 
+    handleDataChange 
+}: { 
+    info: { type: string, value: any, rowId: number, colId: number }, 
+    node: HTMLDivElement, 
+    handleDataChange: (rowId: number, colId: number, val: any) => void 
+}) => {
+    const colDef = getColumnDef(info.colId);
+    const Renderer = colDef.cellRenderer;
+    
+    // We use a layout effect to hide the shimmer only after React has finished
+    // committing the MUI component to the DOM. This prevents the "flash" of old values.
+    React.useLayoutEffect(() => {
+        // Small grace period to allow MUI internal state (like Select's value) to settle
+        const rafId = requestAnimationFrame(() => {
+            node.dataset.stale = 'false';
+        });
+        return () => cancelAnimationFrame(rafId);
+    }, [node, info.rowId, info.colId, info.value]);
+
+    if (!Renderer) return null;
+
+    return (
+        <Renderer
+            value={info.value}
+            rowId={info.rowId}
+            colId={info.colId}
+            onChange={(val) => handleDataChange(info.rowId, info.colId, val)}
+        />
+    );
+};
+
 // --- MAIN APP COMPONENT ---
 export default function HaTableCustomRowHeight10() {
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
@@ -549,6 +617,7 @@ export default function HaTableCustomRowHeight10() {
   const filterRulesRef = useRef<Record<number, { text: string; values: Set<string> }>>({});
   const isMultiSortRef = useRef(false);
   const selectedRowsRef = useRef(new Set<number>());
+  const isScrollingRef = useRef(false);
 
   const rowHeightsRef = useRef(new Float64Array(TOTAL_ROWS).fill(DEFAULT_ROW_HEIGHT));
   const rowLayoutRef = useRef<{ positions: Float64Array; totalHeight: number }>({
@@ -723,8 +792,26 @@ export default function HaTableCustomRowHeight10() {
       const dataCoord = type === 'row-select' ? `${actualRowId}-${actualColId}-${isSel}` : `${actualRowId}-${actualColId}`;
 
       const colDef = getColumnDef(actualColId);
-      if (colDef.cellRenderer) {
-          cellNode.classList.add('ag-cell--react');
+      const isReact = !!colDef.cellRenderer;
+
+      if (isReact) {
+          const isRecycled = cellNode.dataset.row !== String(actualRowId) || cellNode.dataset.col !== String(actualColId);
+
+          if (!cellNode.classList.contains('ag-cell--react')) {
+              cellNode.innerHTML = `<div class="cr10-cell-inner"><div class="cr10-react-static"></div><div class="cr10-react-portal" style="position: absolute; inset: 0; display: flex; align-items: center; padding: 0 8px;"></div></div>`;
+              cellNode.classList.add('ag-cell--react');
+          }
+
+          if (isRecycled) {
+              cellNode.dataset.stale = 'true';
+              const staticNode = cellNode.querySelector('.cr10-react-static') as HTMLElement;
+              if (staticNode) {
+                  staticNode.textContent = SHOW_TEXT_IN_SHIMMER ? (typeof val === 'object' && val !== null ? '' : String(val || '')) : '';
+              }
+          } else if (!isScrollingRef.current) {
+              cellNode.dataset.stale = 'false';
+          }
+
           const prev = portalRegistryRef.current.get(cellNode);
           if (!prev || prev.rowId !== actualRowId || prev.colId !== actualColId || prev.value !== val) {
               portalRegistryRef.current.set(cellNode, { type, value: val, rowId: actualRowId, colId: actualColId });
@@ -732,6 +819,9 @@ export default function HaTableCustomRowHeight10() {
       } else {
           cellNode.classList.remove('ag-cell--react');
           portalRegistryRef.current.delete(cellNode);
+          if (cellNode.dataset.coord !== dataCoord) {
+              cellNode.innerHTML = generateCellHTML(actualColId, val);
+          }
       }
 
       if (cellNode.dataset.coord === dataCoord) return;
@@ -739,7 +829,6 @@ export default function HaTableCustomRowHeight10() {
       cellNode.dataset.coord = dataCoord;
       cellNode.dataset.row = String(actualRowId);
       cellNode.dataset.col = String(actualColId);
-      cellNode.innerHTML = generateCellHTML(actualColId, val);
 
       const isWrap = type === 'text-wrap';
       const isInteractive = ['checkbox', 'row-select'].includes(type);
@@ -956,7 +1045,9 @@ export default function HaTableCustomRowHeight10() {
         });
     }
 
-    setPortalsTick(t => t + 1);
+    if (!isScrollingRef.current) {
+        setPortalsTick(t => t + 1);
+    }
   }, [rowPoolSize, colPoolSize, centerCols, leftCols, rightCols, populateDOMCell, populateDOMHeader, recalcRowLayout, updateShellDimensions]);
 
   useEffect(() => {
@@ -1029,6 +1120,8 @@ export default function HaTableCustomRowHeight10() {
     const onScroll = () => {
         if (!isScrolling) {
             isScrolling = true;
+            isScrollingRef.current = true;
+            document.body.classList.add('cr10-is-scrolling');
             if (Date.now() - editorOpenedAtRef.current > 150) setActiveCell(null);
             if (bodyCenterWrapperRef.current) setStyle(bodyCenterWrapperRef.current, 'pointerEvents', 'none');
             if (bodyLeftWrapperRef.current) setStyle(bodyLeftWrapperRef.current, 'pointerEvents', 'none');
@@ -1037,6 +1130,22 @@ export default function HaTableCustomRowHeight10() {
         clearTimeout(scrollTimeout);
         scrollTimeout = setTimeout(() => {
             isScrolling = false;
+            isScrollingRef.current = false;
+            document.body.classList.remove('cr10-is-scrolling');
+            
+            setPortalsTick(t => t + 1);
+
+            // Safety cleanup: Clear any stuck stale flags after React has had a chance to render
+            setTimeout(() => {
+                document.querySelectorAll('.ag-cell--react[data-stale="true"]').forEach(el => {
+                    const portal = el.querySelector('.cr10-react-portal');
+                    // If the portal has content or if we just want to be safe, clear the stale state
+                    if (portal && portal.children.length > 0) {
+                        (el as HTMLElement).dataset.stale = 'false';
+                    }
+                });
+            }, 50);
+
             if (bodyCenterWrapperRef.current) setStyle(bodyCenterWrapperRef.current, 'pointerEvents', 'auto');
             if (bodyLeftWrapperRef.current) setStyle(bodyLeftWrapperRef.current, 'pointerEvents', 'auto');
             if (bodyRightWrapperRef.current) setStyle(bodyRightWrapperRef.current, 'pointerEvents', 'auto');
@@ -1492,18 +1601,15 @@ export default function HaTableCustomRowHeight10() {
         {/* --- DYNAMIC REACT PORTALS --- */}
         <div style={{ display: 'none' }}>{portalsTick}</div>
         {Array.from(portalRegistryRef.current.entries()).map(([node, info]) => {
-            const placeholder = node.querySelector('.cr10-react-placeholder');
+            const placeholder = node.querySelector('.cr10-react-portal');
             if (!placeholder) return null;
             
-            const Renderer = getColumnDef(info.colId).cellRenderer;
-            if (!Renderer) return null;
-
             return createPortal(
-                <Renderer
-                    value={info.value}
-                    rowId={info.rowId}
-                    colId={info.colId}
-                    onChange={(val) => handleDataChange(info.rowId, info.colId, val)}
+                <PortalCellWrapper
+                    key={`${info.rowId}-${info.colId}`}
+                    info={info}
+                    node={node}
+                    handleDataChange={handleDataChange}
                 />,
                 placeholder
             );

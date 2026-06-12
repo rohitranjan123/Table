@@ -1516,12 +1516,64 @@
 }
 
 /* --- React Portals Styling --- */
-.cr10-react-placeholder {
+.cr10-react-static {
     width: 100%;
     height: 100%;
     display: flex;
     align-items: center;
-    justify-content: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.1s ease;
+    padding: 0 8px;
+    position: relative;
+    background: #ffffff; /* Use white to fully mask content behind */
+    border-radius: 4px;
+    margin: 4px 0;
+    min-height: 24px;
+}
+
+/* Shimmer Effect */
+.cr10-react-static::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        rgba(240, 240, 240, 0) 0%,
+        rgba(240, 240, 240, 0.8) 50%,
+        rgba(240, 240, 240, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: cr10-shimmer 1.5s infinite linear;
+}
+
+@keyframes cr10-shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+}
+
+.cr10-react-portal {
+    width: 100%;
+    height: 100%;
+    opacity: 1;
+    transition: opacity 0.15s ease;
+    z-index: 2;
+}
+
+/* Visibility toggle per-cell based on stale data */
+.ag-cell[data-stale="true"] .cr10-react-static {
+    opacity: 1;
+}
+
+.ag-cell[data-stale="true"] .cr10-react-portal {
+    opacity: 0 !important;
+    pointer-events: none !important;
 }
 
 .cr10-mui-dropdown-placeholder {
